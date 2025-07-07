@@ -1,0 +1,3 @@
+// Configurazione Supabase
+const SUPABASE_URL = 'https://motyywlfmuzsawhvwnbd.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1vdHl5d2xmbXV6c2F3aHZ3bmJkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE5MDk1ODksImV4cCI6MjA2NzQ4NTU4OX0.UTQ1nNZ88pTp-kqQ5MwQNQMO9cQvHvn8qYnCTLvB2LI';
