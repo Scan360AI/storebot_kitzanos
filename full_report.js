@@ -28,6 +28,91 @@ document.addEventListener('DOMContentLoaded', () => {
         displayFullReport(); // Mostra il report all'avvio della pagina
     }
 
+    // Funzione per salvare su Supabase
+    async function saveToSupabase() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const propertyId = urlParams.get('property_id') || localStorage.getItem('storebot_property_id') || 'MANUAL_' + Date.now();
+        
+        try {
+            StorebotUtils.showGlobalLoading("Salvataggio su database esterno...");
+            
+            const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            
+            // Raccogli tutti i dati
+            const allData = collectAllDataForAI();
+            
+            // Prepara i 6 record da salvare
+            const records = [
+                {
+                    external_id: propertyId,
+                    analysis_type: 'context_analyzer',
+                    analysis_data: {
+                        address: allData.address,
+                        analysis: JSON.parse(localStorage.getItem('storebot_contextAnalysis') || '{}'),
+                        summary: allData.contextAnalysis
+                    }
+                },
+                {
+                    external_id: propertyId,
+                    analysis_type: 'property_data',
+                    analysis_data: {
+                        details: JSON.parse(allData.propertyData || '{}'),
+                        images: allData.propertyImages
+                    }
+                },
+                {
+                    external_id: propertyId,
+                    analysis_type: 'marketing_description',
+                    analysis_data: {
+                        description: allData.marketingDescription
+                    }
+                },
+                {
+                    external_id: propertyId,
+                    analysis_type: 'brand_matching',
+                    analysis_data: {
+                        report: allData.brandMatching
+                    }
+                },
+                {
+                    external_id: propertyId,
+                    analysis_type: 'formaps_analysis',
+                    analysis_data: {
+                        chapters: allData.formaps.chapters,
+                        notes: allData.formaps.notes,
+                        maps: allData.formaps.maps
+                    }
+                },
+                {
+                    external_id: propertyId,
+                    analysis_type: 'final_report',
+                    analysis_data: {
+                        reportHTML: document.getElementById('consolidatedReportContent').innerHTML,
+                        generatedAt: new Date().toISOString()
+                    }
+                }
+            ];
+            
+            // Salva tutti i record
+            const { data, error } = await supabase
+                .from('analysis_results')
+                .insert(records);
+                
+            if (error) throw error;
+            
+            StorebotUtils.hideGlobalLoading();
+            StorebotUtils.showTemporaryMessage('✅ Report salvato nel database esterno!', 'success');
+            
+            // Salva l'ID per riferimenti futuri
+            localStorage.setItem('storebot_property_id', propertyId);
+            
+        } catch (error) {
+            console.error('Errore salvataggio Supabase:', error);
+            StorebotUtils.hideGlobalLoading();
+            StorebotUtils.showTemporaryMessage('❌ Errore nel salvataggio: ' + error.message, 'error');
+        }
+    }
+
     function displayFullReport() {
         const contextSummary = localStorage.getItem('storebot_contextAISummary');
         const propertyDetails = localStorage.getItem('storebot_propertyDetails');
