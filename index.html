@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Storebot - My Storebook AI Pro Suite</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css"> <!-- CSS Comune -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+</head>
+<body>
+<header class="suite-header">
+    <a href="index.html"><img src="logo.png" alt="Storebot Logo" class="logo"></a>
+    <nav class="suite-nav">
+        <a href="index.html" class="nav-link active">Home</a>
+        <a href="settings.html" class="nav-link">Configurazione</a>
+        <a href="context_analyzer.html" class="nav-link">Analisi Contesto</a>
+        <a href="property_data_extractor.html" class="nav-link">Dati Immobile</a>
+        <a href="marketing_description_generator.html" class="nav-link">Descrizione Marketing</a>
+        <a href="brand_matcher.html" class="nav-link">Matching Brand</a>
+        <a href="formaps_integration.html" class="nav-link">Formaps</a>
+        <a href="full_report.html" class="nav-link">Report</a>
+    </nav>
+    <div class="header-utilities">
+        <button id="resetAllDataBtn" class="btn-icon-header" title="Reset tutti i dati applicazione">
+            <i data-lucide="trash-2"></i>
+        </button>
+    </div>
+</header>
+
+
+    <main class="suite-main-content">
+        <section class="hero-section">
+            <h1>Storebot - My Storebook AI Pro Suite</h1>
+            <p>La tua piattaforma integrata per l'analisi immobiliare commerciale avanzata.</p>
+        </section>
+
+        <section class="start-analysis-section">
+            <h2>Inizia una Nuova Analisi</h2>
+            <div class="form-group">
+                <label for="mainAddressInput"></label>
+                <input type="text" id="mainAddressInput" placeholder="es. Via Roma 123, Milano">
+            </div>
+            <button id="goToContextAnalysisBtn" class="btn btn-primary btn-large">
+                <i data-lucide="map"></i> Analizza Contesto Quartiere
+            </button>
+            <p class="info-text">Inserisci un indirizzo e inizia con l'analisi del contesto, oppure accedi direttamente agli altri moduli.</p>
+        </section>
+
+        <section class="modules-grid">
+            <h2>Moduli Disponibili</h2>
+            <div class="grid-container">
+                <a href="context_analyzer.html" class="module-card">
+                    <i data-lucide="map-pinned"></i>
+                    <h3>Analisi Contesto</h3>
+                    <p>Esplora i dintorni, i POI e la vocazione del quartiere.</p>
+                </a>
+                <a href="property_data_extractor.html" class="module-card">
+                    <i data-lucide="file-spreadsheet"></i>
+                    <h3>Dati Immobile</h3>
+                    <p>Estrai o inserisci i dettagli chiave della proprietà.</p>
+                </a>
+                <a href="marketing_description_generator.html" class="module-card">
+                    <i data-lucide="pen-tool"></i>
+                    <h3>Descrizione Marketing</h3>
+                    <p>Genera testi promozionali efficaci con l'AI.</p>
+                </a>
+                <a href="brand_matcher.html" class="module-card">
+                    <i data-lucide="git-compare-arrows"></i>
+                    <h3>Matching Brand</h3>
+                    <p>Scopri i brand più compatibili con l'immobile.</p>
+                </a>
+                <a href="full_report.html" class="module-card">
+                    <i data-lucide="file-check-2"></i>
+                    <h3>Report Consolidato</h3>
+                    <p>Visualizza ed esporta l'analisi completa.</p>
+                </a>
+                 <a href="settings.html" class="module-card">
+                    <i data-lucide="sliders-horizontal"></i>
+                    <h3>Configurazione</h3>
+                    <p>Gestisci le tue API Keys.</p>
+                </a>
+            </div>
+        </section>
+    </main>
+
+    <footer class="suite-footer">
+        <p>&copy; 2025 Masema Srl. Tutti i diritti riservati.</p>
+    </footer>
+
+    <script src="common_utils.js"></script>
+    <script>
+        // index.js (o script specifico per home.html)
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            StorebotUtils.checkApiKeysAndNotify(); // Notifica se le API keys non sono configurate
+
+            const mainAddressInput = document.getElementById('mainAddressInput');
+            const goToContextBtn = document.getElementById('goToContextAnalysisBtn');
+
+            // Carica l'ultimo indirizzo usato, se presente
+            const lastAddress = localStorage.getItem('storebot_lastAddress');
+            if (lastAddress && mainAddressInput) {
+                mainAddressInput.value = lastAddress;
+            }
+
+            if (goToContextBtn) {
+                goToContextBtn.addEventListener('click', () => {
+                    const address = mainAddressInput.value.trim();
+                    if (!address) {
+                        StorebotUtils.showTemporaryMessage('Inserisci un indirizzo prima di procedere.', 'error');
+                        mainAddressInput.focus();
+                        return;
+                    }
+                    // Salva l'indirizzo per le altre pagine
+                    localStorage.setItem('storebot_currentAddress', address);
+                    localStorage.setItem('storebot_lastAddress', address); // Salva anche come ultimo indirizzo generale
+                    window.location.href = 'context_analyzer.html';
+                });
+            }
+
+            // Per i link diretti ai moduli, salva l'indirizzo se inserito
+            document.querySelectorAll('.module-card').forEach(card => {
+                card.addEventListener('click', (e) => {
+                    const address = mainAddressInput.value.trim();
+                    if (address) {
+                        localStorage.setItem('storebot_currentAddress', address);
+                        localStorage.setItem('storebot_lastAddress', address);
+                    } else if (card.href.includes('context_analyzer.html')) { // Richiede indirizzo per context
+                        e.preventDefault();
+                        StorebotUtils.showTemporaryMessage('Inserisci un indirizzo per l\'analisi del contesto.', 'error');
+                        mainAddressInput.focus();
+                    }
+                    // Altrimenti, lascia che il link funzioni normalmente
+                });
+            });
+        });
+    </script>
+</body>
+</html>

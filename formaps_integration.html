@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Storebot Pro - Analisi Formaps</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="formaps_styles.css">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+</head>
+<body>
+    <header class="suite-header">
+        <a href="index.html"><img src="logo.png" alt="Storebot Logo" class="logo"></a>
+        <nav class="suite-nav">
+            <a href="index.html" class="nav-link">Home</a>
+            <a href="settings.html" class="nav-link">Configurazione</a>
+            <a href="context_analyzer.html" class="nav-link">Analisi Contesto</a>
+            <a href="property_data_extractor.html" class="nav-link">Dati Immobile</a>
+            <a href="marketing_description_generator.html" class="nav-link">Descrizione Marketing</a>
+            <a href="brand_matcher.html" class="nav-link">Matching Brand</a>
+            <a href="formaps_integration.html" class="nav-link active">Formaps</a>
+            <a href="full_report.html" class="nav-link">Report</a>
+        </nav>
+    </header>
+
+    <main class="suite-main-content">
+        <section class="module-content-section">
+            <header class="module-header">
+                <h1><i data-lucide="map"></i> Analisi Territoriale Formaps</h1>
+                <p>Esplora dati demografici, economici e territoriali avanzati con Formaps</p>
+            </header>
+
+            <div id="messageContainer" class="message-container"></div>
+
+            <!-- Barra indirizzo corrente compatta -->
+            <div class="current-address-bar compact" id="addressBar">
+                <div class="address-content">
+                    <i data-lucide="map-pin" class="address-icon"></i>
+                    <span class="address-label">Indirizzo in analisi:</span>
+                    <div class="address-value" id="currentAddressDisplay">
+                        via angioy 34, cagliari
+                    </div>
+                    <button id="copyAddressBtn" class="btn-icon" title="Copia indirizzo">
+                        <i data-lucide="copy"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Controlli compatti per l'iframe -->
+            <div class="formaps-controls compact">
+                <div class="control-group">
+                    <button id="refreshFormapsBtn" class="btn-icon" title="Ricarica">
+                        <i data-lucide="refresh-cw"></i>
+                    </button>
+                    <button id="openNewWindowBtn" class="btn-icon" title="Apri in nuova finestra">
+                        <i data-lucide="external-link"></i>
+                    </button>
+                    <button id="fullscreenBtn" class="btn-icon" title="Schermo intero">
+                        <i data-lucide="maximize-2"></i>
+                    </button>
+                    <button id="screenshotBtn" class="btn-icon" title="Cattura schermata">
+                        <i data-lucide="camera"></i>
+                    </button>
+                    <button id="aiAnalyzeBtn" class="btn-icon" title="Analizza screenshot con AI">
+                        <i data-lucide="brain"></i>
+                    </button>
+                    <button id="saveMapBtn" class="btn-icon" title="Salva come mappa">
+                        <i data-lucide="map-pinned"></i>
+                    </button>
+                </div>
+                
+                <div class="info-text">
+                    <i data-lucide="info"></i>
+                    <span>Formaps offre analisi territoriali dettagliate inclusi dati demografici, flussi di traffico, competitor e molto altro.</span>
+                </div>
+            </div>
+
+            <!-- Container per l'iframe -->
+            <div class="iframe-container" id="formapsContainer">
+                <div class="iframe-loading" id="iframeLoading">
+                    <div class="loading-spinner"></div>
+                    <p>Caricamento Formaps in corso...</p>
+                </div>
+                <iframe 
+                    id="formapsIframe"
+                    src="https://www.formaps.it/" 
+                    title="Formaps - Analisi Territoriale"
+                    allowfullscreen
+                    allow="geolocation; camera"
+                    style="display: none;"
+                ></iframe>
+            </div>
+
+            <!-- Sezione per note/appunti -->
+            <div class="notes-section">
+                <div class="notes-header">
+                    <h3><i data-lucide="file-text"></i> Note sull'Analisi</h3>
+                    <div class="notes-controls">
+                        <button id="collapseAllBtn" class="btn-icon-small" title="Comprimi tutti">
+                            <i data-lucide="minimize-2"></i>
+                        </button>
+                        <button id="expandAllBtn" class="btn-icon-small" title="Espandi tutti">
+                            <i data-lucide="maximize-2"></i>
+                        </button>
+                        <button id="clearAllChaptersBtn" class="btn-icon-small btn-danger" title="Elimina tutti i capitoli">
+                            <i data-lucide="trash"></i>
+                        </button>
+                        <button id="transferToReportBtn" class="btn-icon-small btn-primary" title="Trasferisci a Report">
+                            <i data-lucide="file-plus"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Lista capitoli -->
+                <div id="chaptersContainer" class="chapters-container">
+                    <!-- I capitoli verranno inseriti qui dinamicamente -->
+                </div>
+                
+                <!-- Textarea per note manuali -->
+                <div class="manual-notes">
+                    <h4>Note Manuali</h4>
+                    <textarea 
+                        id="formapsNotes" 
+                        placeholder="Inserisci qui le tue note personali..."
+                        rows="4"
+                    ></textarea>
+                    <button id="saveNotesBtn" class="btn btn-secondary">
+                        <i data-lucide="save"></i> Salva Note
+                    </button>
+                </div>
+
+<!-- Separatore tra Note e Mappe -->
+                <div class="section-separator"></div>
+
+                <!-- Sezione Mappe -->
+                <div class="maps-section">
+                    <div class="maps-header">
+                        <h4><i data-lucide="map"></i> Mappe Salvate</h4>
+                        <button id="clearAllMapsBtn" class="btn-icon-small" title="Elimina tutte le mappe">
+                            <i data-lucide="trash-2"></i>
+                        </button>
+                    </div>
+                    <div id="mapsContainer" class="maps-container">
+                        <!-- Le mappe verranno inserite qui dinamicamente -->
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="suite-footer">
+        <p>&copy; 2024 Storebot Pro Suite.</p>
+    </footer>
+
+    <script src="common_utils.js"></script>
+    <script src="formaps_integration.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</body>
+</html>

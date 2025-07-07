@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Storebot Pro - Dati Immobile</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    </script>
+</head>
+<body>
+<header class="suite-header">
+        <a href="index.html"><img src="logo.png" alt="Storebot Logo" class="logo"></a>
+        <nav class="suite-nav">
+            <a href="index.html" class="nav-link">Home</a>
+            <a href="settings.html" class="nav-link">Configurazione</a>
+            <a href="context_analyzer.html" class="nav-link">Analisi Contesto</a>
+            <a href="property_data_extractor.html" class="nav-link active">Dati Immobile</a>
+            <a href="marketing_description_generator.html" class="nav-link">Descrizione Marketing</a>
+            <a href="brand_matcher.html" class="nav-link">Matching Brand</a>
+            <a href="formaps_integration.html" class="nav-link">Formaps</a>
+            <a href="full_report.html" class="nav-link">Report</a>
+        </nav>
+    </header>
+
+    <main class="suite-main-content">
+        <section class="module-content-section">
+            <header class="module-header">
+                <h1><i data-lucide="file-spreadsheet"></i> Estrazione/Inserimento Dati Immobile</h1>
+                <p>Carica un PDF, incolla JSON, usa l'API Storebot o inserisci manualmente i dettagli.</p>
+            </header>
+
+            <div id="messageContainer" class="message-container"></div>
+
+            <div class="tabs-container">
+                <div class="tabs">
+                    <button class="tab-link active" data-tab="pdfInputTab"><i data-lucide="file-text"></i> PDF Annuncio</button>
+                    <button class="tab-link" data-tab="jsonInputTab"><i data-lucide="braces"></i> Incolla JSON</button>
+                    <button class="tab-link" data-tab="manualInputTab"><i data-lucide="edit-3"></i> Input Manuale</button>
+                    <button class="tab-link" data-tab="storebotApiTab"><i data-lucide="cloud-download"></i> API Storebot</button>
+                </div>
+
+                <div id="pdfInputTab" class="tab-content active">
+                    <h3>Estrai da PDF</h3>
+                    <div class="form-group">
+                        <label for="propertyPdfFile">Seleziona PDF annuncio immobiliare:</label>
+                        <input type="file" id="propertyPdfFile" accept=".pdf">
+                    </div>
+                    <button id="extractFromPdfBtn" class="btn btn-primary"><i data-lucide="file-scan"></i> Estrai Dati da PDF</button>
+                    <div id="pdfExtractionOutput" class="ai-output-box placeholder" style="margin-top: 20px;">
+                        Dati estratti dal PDF (JSON)...
+                    </div>
+                </div>
+
+                <div id="jsonInputTab" class="tab-content">
+                    <h3>Incolla Dati JSON</h3>
+                    <div class="form-group">
+                        <label for="propertyJsonInputArea">Incolla qui il JSON dei dati immobile:</label>
+                        <textarea id="propertyJsonInputArea" rows="10" placeholder='es: {"indirizzo": "Via...", "superficie_mq": 150, ...}'></textarea>
+                    </div>
+                    <button id="loadFromJsonBtn" class="btn btn-primary"><i data-lucide="save"></i> Carica Dati JSON</button>
+                </div>
+
+                <div id="manualInputTab" class="tab-content">
+                    <h3>Inserimento Manuale Dati Immobile</h3>
+                    <!-- Qui andrà un form dettagliato, per ora un placeholder -->
+                    <div class="form-group">
+                        <label for="manualAddress">Indirizzo</label>
+                        <input type="text" id="manualAddress" placeholder="Via, numero, città">
+                    </div>
+                    <div class="form-group">
+                        <label for="manualSurface">Superficie (mq)</label>
+                        <input type="number" id="manualSurface" placeholder="Es. 150">
+                    </div>
+                    <div class="form-group">
+                        <label for="manualPrice">Prezzo Richiesto / Canone Mensile</label>
+                        <input type="text" id="manualPrice" placeholder="Es. 250000 o 1200/mese">
+                    </div>
+                    <div class="form-group">
+                        <label for="manualShopWindows">Numero Vetrine</label>
+                        <input type="number" id="manualShopWindows" placeholder="Es. 3">
+                    </div>
+                    <!-- Aggiungere altri campi come da real_estate_analyzer -->
+                    <button id="saveManualDataBtn" class="btn btn-primary"><i data-lucide="save"></i> Salva Dati Manuali</button>
+                </div>
+
+                <div id="storebotApiTab" class="tab-content">
+                    <h3>Carica da API Storebot</h3>
+                    <div class="form-group">
+                        <label for="storebotAssetId">ID Immobile Storebot:</label>
+                        <input type="text" id="storebotAssetId" placeholder="Es. 01HT09WWK1GR4K6230DM1PB8AV" value="01HT09WWK1GR4K6230DM1PB8AV">
+                        <small>Inserisci l'ID dell'immobile fornito da Storebot o copialo dall'applicativo</small>
+                    </div>
+                    <button id="loadFromStorebotBtn" class="btn btn-primary"><i data-lucide="cloud-download"></i> Carica Dati da Storebot</button>
+                    <div id="storebotLoadingStatus" class="loading-status" style="margin-top: 10px; display: none;">
+                        <i data-lucide="loader-2" class="spin-icon"></i> Caricamento in corso...
+                    </div>
+                    <div id="storebotApiOutput" class="ai-output-box placeholder" style="margin-top: 20px;">
+                        I dati caricati dall'API Storebot appariranno qui...
+                    </div>
+                </div>
+            </div>
+
+            <div id="propertyDataSummary" class="data-summary-box placeholder" style="margin-top: 30px;">
+                Riepilogo dei dati immobile attualmente salvati...
+            </div>
+        </section>
+    </main>
+
+    <footer class="suite-footer">
+        <p>&copy; 2024 Storebot Pro Suite.</p>
+    </footer>
+
+    <script src="common_utils.js"></script>
+    <script src="property_data_extractor.js"></script>
+</body>
+</html>

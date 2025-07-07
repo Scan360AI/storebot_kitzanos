@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Storebot Pro - Report Consolidato</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="full_report_styles.css">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+</head>
+<body>
+    <header class="suite-header">
+        <a href="index.html"><img src="logo.png" alt="Storebot Logo" class="logo"></a>
+        <nav class="suite-nav">
+            <a href="index.html" class="nav-link">Home</a>
+            <a href="settings.html" class="nav-link">Configurazione</a>
+            <a href="context_analyzer.html" class="nav-link">Analisi Contesto</a>
+            <a href="property_data_extractor.html" class="nav-link">Dati Immobile</a>
+            <a href="marketing_description_generator.html" class="nav-link">Descrizione Marketing</a>
+            <a href="brand_matcher.html" class="nav-link">Matching Brand</a>
+            <a href="formaps_integration.html" class="nav-link">Formaps</a>
+            <a href="full_report.html" class="nav-link active">Report</a>
+        </nav>
+    </header>
+
+    <main class="suite-main-content">
+        <section class="module-content-section">
+            <header class="module-header">
+                <h1><i data-lucide="file-check-2"></i> Report Consolidato</h1>
+                <p>Visualizza e esporta l'analisi completa per l'indirizzo: <strong id="reportAddressDisplay">N/D</strong></p>
+            </header>
+
+            <div id="messageContainer" class="message-container"></div>
+
+            <button id="generateReportBtn" class="btn btn-primary" style="margin-bottom: 20px;">
+                <i data-lucide="refresh-cw"></i> Aggiorna/Genera Report
+            </button>
+            <button id="exportReportTxtBtn" class="btn btn-secondary" style="margin-bottom: 20px;">
+                <i data-lucide="download"></i> Esporta Report TXT
+            </button>
+            <button id="generateAISheetBtn" class="btn btn-primary" style="margin-bottom: 20px;">
+                <i data-lucide="sparkles"></i> Genera Scheda AI
+            </button>
+
+            <div class="report-viewer">
+                <section class="report-section">
+                    <h2><i data-lucide="map-pin"></i> Analisi Contesto Quartiere</h2>
+                    <div id="reportContextContent" class="ai-output-box report-content-box placeholder">
+                        Contenuto analisi contesto...
+                    </div>
+                </section>
+
+                <section class="report-section">
+                    <h2><i data-lucide="clipboard-list"></i> Dati Immobile</h2>
+                    <div id="reportPropertyContent" class="ai-output-box report-content-box placeholder">
+                        Dettagli immobile (JSON)...
+                    </div>
+                </section>
+
+                <section class="report-section">
+                    <h2><i data-lucide="map"></i> Analisi Territoriale Formaps</h2>
+                    <div id="reportFormapsContent" class="ai-output-box report-content-box placeholder">
+                        Dati Formaps...
+                    </div>
+                </section>
+
+                <section class="report-section">
+                    <h2><i data-lucide="pen-tool"></i> Descrizione Marketing</h2>
+                    <div id="reportMarketingContent" class="ai-output-box report-content-box placeholder">
+                        Testo descrizione marketing...
+                    </div>
+                </section>
+
+                <section class="report-section">
+                    <h2><i data-lucide="git-compare-arrows"></i> Analisi Compatibilità Brand</h2>
+                    <div id="reportBrandMatchingContent" class="ai-output-box report-content-box placeholder">
+                        Risultati matching brand...
+                    </div>
+                </section>
+            </div>
+
+            <!-- Modal per la scheda AI -->
+            <div id="aiSheetModal" class="modal-overlay" style="display: none;">
+                <div class="modal-container">
+                    <div class="modal-header">
+                        <h3>Scheda Immobile AI</h3>
+                        <button class="modal-close-btn" onclick="closeAISheetModal()">
+                            <i data-lucide="x"></i>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div id="aiSheetContent"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" onclick="saveAISheetAsHTML()">
+                            <i data-lucide="download"></i> Salva HTML
+                        </button>
+                        <button class="btn btn-secondary" onclick="printAISheet()">
+                            <i data-lucide="printer"></i> Stampa
+                        </button>
+                        <button class="btn btn-secondary" onclick="copyAISheetHTML()">
+                            <i data-lucide="copy"></i> Copia Codice
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+    </main>
+
+    <footer class="suite-footer">
+        <p>&copy; 2024 Storebot Pro Suite.</p>
+    </footer>
+
+    <script src="common_utils.js"></script>
+    <script src="full_report.js"></script>
+</body>
+</html>

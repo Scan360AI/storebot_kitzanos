@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Storebot Pro - Descrizione Marketing</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+</head>
+<body>
+<header class="suite-header">
+        <a href="index.html"><img src="logo.png" alt="Storebot Logo" class="logo"></a>
+        <nav class="suite-nav">
+            <a href="index.html" class="nav-link">Home</a>
+            <a href="settings.html" class="nav-link">Configurazione</a>
+            <a href="context_analyzer.html" class="nav-link">Analisi Contesto</a>
+            <a href="property_data_extractor.html" class="nav-link">Dati Immobile</a>
+            <a href="marketing_description_generator.html" class="nav-link active">Descrizione Marketing</a>
+            <a href="brand_matcher.html" class="nav-link">Matching Brand</a>
+            <a href="formaps_integration.html" class="nav-link">Formaps</a>
+            <a href="full_report.html" class="nav-link">Report</a>
+        </nav>
+    </header>
+
+
+    <main class="suite-main-content">
+        <section class="module-content-section">
+            <header class="module-header">
+                <h1><i data-lucide="pen-tool"></i> Generatore Descrizione Marketing</h1>
+                <p>Crea testi promozionali efficaci per il tuo immobile commerciale con l'AI.</p>
+            </header>
+
+            <div id="messageContainer" class="message-container"></div>
+
+            <!-- Sezione immagini con tabs -->
+            <div class="image-upload-section">
+                <h3 style="margin-bottom: 15px; color: #34495E; display: flex; align-items: center; gap: 8px;">
+                    <i data-lucide="image" style="width: 20px; height: 20px;"></i>
+                    Immagini Immobile (opzionale, max 5)
+                </h3>
+                
+                <div class="tabs image-tabs">
+                    <button class="tab-link active" data-tab="uploadImagesTab">
+                        <i data-lucide="upload"></i> Carica File
+                    </button>
+                    <button class="tab-link" data-tab="urlImagesTab">
+                        <i data-lucide="link"></i> Inserisci URL
+                    </button>
+                </div>
+
+                <div class="tabs-container">
+                    <div id="uploadImagesTab" class="tab-content active">
+                        <div class="upload-area" id="uploadArea">
+                            <div class="upload-icon">
+                                <i data-lucide="image-plus" style="width: 48px; height: 48px; color: #1ABC9C;"></i>
+                            </div>
+                            <div class="upload-text">Trascina qui le foto dell'immobile</div>
+                            <div class="upload-subtext">oppure clicca per selezionare (max 5 immagini)</div>
+                            <input type="file" id="marketingImagesInput" multiple accept="image/*" style="display: none;">
+                        </div>
+                    </div>
+
+                    <div id="urlImagesTab" class="tab-content">
+                        <div class="url-input-section">
+                            <div class="url-form">
+                                <input type="url" id="imageUrlInput" placeholder="https://esempio.com/immagine.jpg" class="url-input">
+                                <button class="btn btn-secondary" id="addImageUrlBtn">
+                                    <i data-lucide="plus"></i> Aggiungi
+                                </button>
+                            </div>
+                            <div class="url-list" id="urlList"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="imagePreviewContainer" class="image-preview-grid" style="margin-top: 20px;"></div>
+            </div>
+
+            <div class="form-group">
+                <label for="propertyDetailsForMarketing"><i data-lucide="clipboard-paste"></i> Dati Immobile (JSON - verranno pre-compilati):</label>
+                <textarea id="propertyDetailsForMarketing" rows="8" placeholder="I dati dell'immobile verranno caricati automaticamente. Puoi modificarli o aggiungerne."></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label for="neighborhoodContextForMarketing"><i data-lucide="map-pin"></i> Contesto Quartiere (verrà pre-compilato):</label>
+                <textarea id="neighborhoodContextForMarketing" rows="8" placeholder="L'analisi del contesto verrà caricata automaticamente. Puoi modificarla o aggiungerne."></textarea>
+            </div>
+
+            <button id="generateDescriptionBtn" class="btn btn-primary btn-large">
+                <i data-lucide="sparkles"></i> Genera Descrizione con AI
+            </button>
+
+            <div id="marketingOutput" class="ai-output-box placeholder marketing-description-output" style="margin-top: 30px;">
+                La descrizione marketing generata apparirà qui...
+            </div>
+            
+            <div class="result-actions" style="display:none; margin-top:15px; text-align: center;">
+                <button id="copyMarketingTextBtn" class="btn btn-secondary">
+                    <i data-lucide="copy"></i> Copia Testo
+                </button>
+                <button id="downloadMarkdownBtn" class="btn btn-secondary">
+                    <i data-lucide="download"></i> Scarica Markdown
+                </button>
+            </div>
+        </section>
+    </main>
+
+    <footer class="suite-footer">
+        <p>&copy; 2024 Storebot Pro Suite.</p>
+    </footer>
+
+    <script src="common_utils.js"></script>
+    <script src="marketing_description_generator.js"></script>
+</body>
+</html>

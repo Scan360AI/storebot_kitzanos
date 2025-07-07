@@ -1,0 +1,552 @@
+/* ==========================================================================
+   Full Report Styles - Storebot Pro Suite
+   ========================================================================== */
+
+/* ==========================================================================
+   Modal Overlay e Container
+   ========================================================================== */
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    padding: 20px;
+}
+
+.modal-container {
+    background-color: #ffffff;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 1200px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+    overflow: hidden;
+}
+
+.modal-header {
+    background-color: #ffffff;
+    padding: 20px 30px;
+    border-bottom: 1px solid #e5e7eb;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.modal-close-btn {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #6b7280;
+    padding: 8px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+}
+
+.modal-close-btn:hover {
+    background-color: #f3f4f6;
+    color: #1f2937;
+}
+
+.modal-body {
+    flex: 1;
+    overflow-y: auto;
+    background-color: #ffffff;
+    padding: 0;
+}
+
+#aiSheetContent {
+    background-color: #ffffff;
+    min-height: 100%;
+}
+
+.modal-footer {
+    background-color: #ffffff;
+    padding: 20px 30px;
+    border-top: 1px solid #e5e7eb;
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    flex-shrink: 0;
+}
+
+.modal-footer .btn {
+    margin: 0;
+}
+
+/* ==========================================================================
+   Report Sections
+   ========================================================================== */
+
+.report-viewer {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.report-section {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    margin-bottom: 24px;
+    padding: 24px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.report-section h2 {
+    color: #1f2937;
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin: 0 0 20px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.report-section h2 i {
+    color: #1abc9c;
+    width: 24px;
+    height: 24px;
+}
+
+/* ==========================================================================
+   Report Content Boxes
+   ========================================================================== */
+
+.report-content-box {
+    background: #f9fafb;
+    border-radius: 6px;
+    padding: 20px;
+    min-height: 100px;
+}
+
+.report-content-box.placeholder {
+    color: #9ca3af;
+    font-style: italic;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.report-formatted-content {
+    background: transparent;
+    color: #374151;
+    line-height: 1.8;
+}
+
+.report-formatted-content h3 {
+    color: #1f2937;
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-top: 1.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.report-formatted-content h4 {
+    color: #374151;
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin-top: 1.25rem;
+    margin-bottom: 0.75rem;
+}
+
+.report-formatted-content h5 {
+    color: #4b5563;
+    font-size: 1rem;
+    font-weight: 600;
+    margin-top: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.report-formatted-content p {
+    margin-bottom: 1rem;
+    text-align: justify;
+}
+
+.report-formatted-content ul,
+.report-formatted-content ol {
+    margin: 1rem 0;
+    padding-left: 2rem;
+}
+
+.report-formatted-content li {
+    margin-bottom: 0.5rem;
+}
+
+.report-formatted-content strong {
+    color: #1f2937;
+    font-weight: 600;
+}
+
+.report-formatted-content em {
+    font-style: italic;
+}
+
+.report-formatted-content code {
+    background: #e5e7eb;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 0.875em;
+}
+
+.report-formatted-content pre {
+    background: #1f2937;
+    color: #e5e7eb;
+    padding: 1rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin: 1rem 0;
+}
+
+.report-formatted-content pre code {
+    background: transparent;
+    padding: 0;
+    color: inherit;
+}
+
+.report-formatted-content hr {
+    border: none;
+    border-top: 1px solid #e5e7eb;
+    margin: 2rem 0;
+}
+
+/* ==========================================================================
+   JSON Content Styling
+   ========================================================================== */
+
+.json-content {
+    background: #1f2937;
+    color: #10b981;
+    padding: 1rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    white-space: pre;
+    margin: 0;
+}
+
+/* ==========================================================================
+   Formaps Report Section
+   ========================================================================== */
+
+.formaps-report-section {
+    color: #374151;
+}
+
+.formaps-report-section h3 {
+    color: #1abc9c;
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin-top: 1.5rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #e5e7eb;
+}
+
+.formaps-chapter {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.formaps-chapter h4 {
+    color: #1f2937;
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0 0 8px 0;
+}
+
+.chapter-date {
+    font-size: 0.875rem;
+    color: #6b7280;
+    margin-bottom: 12px;
+}
+
+.chapter-content {
+    color: #4b5563;
+    line-height: 1.6;
+}
+
+.formaps-notes {
+    margin-top: 24px;
+    padding-top: 24px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.notes-content {
+    background: #f9fafb;
+    padding: 16px;
+    border-radius: 6px;
+    color: #4b5563;
+    line-height: 1.6;
+}
+
+/* ==========================================================================
+   Maps Grid
+   ========================================================================== */
+
+.formaps-maps {
+    margin-top: 24px;
+}
+
+.maps-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+    margin-top: 16px;
+}
+
+.map-thumbnail-item {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.map-thumbnail-item:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+}
+
+.map-thumb {
+    width: 100%;
+    height: 150px;
+    object-fit: cover;
+}
+
+.map-title {
+    padding: 8px 12px;
+    font-size: 0.875rem;
+    color: #4b5563;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ==========================================================================
+   Buttons and Controls
+   ========================================================================== */
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.btn i {
+    width: 18px;
+    height: 18px;
+}
+
+.btn-primary {
+    background-color: #1abc9c;
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: #16a085;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(26, 188, 156, 0.25);
+}
+
+.btn-secondary {
+    background-color: #6b7280;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background-color: #4b5563;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(107, 114, 128, 0.25);
+}
+
+/* ==========================================================================
+   Responsive Design
+   ========================================================================== */
+
+@media (max-width: 768px) {
+    .modal-overlay {
+        padding: 0;
+    }
+    
+    .modal-container {
+        width: 100%;
+        height: 100%;
+        max-height: 100vh;
+        border-radius: 0;
+    }
+    
+    .modal-header,
+    .modal-footer {
+        padding: 15px 20px;
+    }
+    
+    .report-section {
+        padding: 16px;
+        margin-bottom: 16px;
+    }
+    
+    .report-section h2 {
+        font-size: 1.25rem;
+    }
+    
+    .maps-grid {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 12px;
+    }
+    
+    .modal-footer {
+        flex-wrap: wrap;
+    }
+    
+    .modal-footer .btn {
+        flex: 1;
+        min-width: 120px;
+    }
+}
+
+@media (max-width: 480px) {
+    .maps-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+    
+    .btn {
+        font-size: 14px;
+        padding: 8px 16px;
+    }
+}
+
+/* ==========================================================================
+   Print Styles
+   ========================================================================== */
+
+@media print {
+    .modal-header,
+    .modal-footer,
+    .btn,
+    .no-print {
+        display: none !important;
+    }
+    
+    .modal-container {
+        box-shadow: none;
+        max-height: none;
+    }
+    
+    .report-section {
+        page-break-inside: avoid;
+        box-shadow: none;
+        border: 1px solid #ddd;
+    }
+}
+
+/* ==========================================================================
+   Loading Animation
+   ========================================================================== */
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.spin-icon {
+    animation: spin 1s linear infinite;
+}
+
+/* ==========================================================================
+   Message Container (se necessario)
+   ========================================================================== */
+
+.message-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 10000;
+    max-width: 400px;
+}
+
+.message-banner {
+    padding: 16px 20px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.message-banner.info {
+    background-color: #EFF6FF;
+    color: #1E40AF;
+    border: 1px solid #DBEAFE;
+}
+
+.message-banner.success {
+    background-color: #F0FDF4;
+    color: #166534;
+    border: 1px solid #BBF7D0;
+}
+
+.message-banner.warning {
+    background-color: #FFFBEB;
+    color: #A16207;
+    border: 1px solid #FDE68A;
+}
+
+.message-banner.error {
+    background-color: #FEF2F2;
+    color: #991B1B;
+    border: 1px solid #FEE2E2;
+}

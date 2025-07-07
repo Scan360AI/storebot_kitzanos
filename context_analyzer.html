@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Storebot Pro - Analisi Contesto AI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="context_analyzer_styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/fuse.js/dist/fuse.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+</head>
+<body>
+    <!-- HEADER SUITE -->
+<header class="suite-header">
+        <a href="index.html"><img src="logo.png" alt="Storebot Logo" class="logo"></a>
+        <nav class="suite-nav">
+            <a href="index.html" class="nav-link">Home</a>
+            <a href="settings.html" class="nav-link">Configurazione</a>
+            <a href="context_analyzer.html" class="nav-link active">Analisi Contesto</a>
+            <a href="property_data_extractor.html" class="nav-link">Dati Immobile</a>
+            <a href="marketing_description_generator.html" class="nav-link">Descrizione Marketing</a>
+            <a href="brand_matcher.html" class="nav-link">Matching Brand</a>
+            <a href="formaps_integration.html" class="nav-link">Formaps</a>
+            <a href="full_report.html" class="nav-link">Report</a>
+        </nav>
+    </header>
+
+
+    <div class="container context-analyzer-container">
+        <div class="search-section">
+            <div id="messageContainer" class="message-container"></div>
+            
+            <form class="search-form" id="searchForm">
+                <div class="form-group">
+                    <label for="address">Indirizzo Immobile</label>
+                    <input type="text" id="address" placeholder="es. Via Roma 123, Milano" required>
+                </div>
+                <button type="submit" class="search-btn" id="searchBtn">
+                    <i data-lucide="search" class="icon"></i>
+                    Analizza
+                </button>
+            </form>
+        </div>
+
+        <div class="results-section" id="resultsSection" style="display: none;">
+            <!-- SUMMARY STATS -->
+            <div class="summary" id="summary">
+                <div class="summary-stats">
+                    <div class="stat-item">
+                        <div class="stat-label">Attrattori Totali</div>
+                        <div class="stat-number" id="totalPlaces">0</div>
+                        <div class="stat-icon">
+                            <i data-lucide="map-pin" class="icon"></i>
+                        </div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Brand Riconosciuti</div>
+                        <div class="stat-number" id="totalBrands">0</div>
+                        <div class="stat-icon">
+                            <i data-lucide="star" class="icon"></i>
+                        </div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Attività Locali</div>
+                        <div class="stat-number" id="totalLocals">0</div>
+                        <div class="stat-icon">
+                            <i data-lucide="store" class="icon"></i>
+                        </div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Categorie Attive</div>
+                        <div class="stat-number" id="activeCategories">0</div>
+                        <div class="stat-icon">
+                            <i data-lucide="grid-3x3" class="icon"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- COPY SECTION -->
+            <div class="copy-section">
+                <h3>Export & Analisi</h3>
+                <p>Genera report professionali per le tue valutazioni immobiliari</p>
+                <button class="copy-btn" id="copyBtn">
+                    <i data-lucide="file-text" class="icon"></i>
+                    Copia Lista Testo
+                </button>
+                <button class="copy-btn" id="copyExcelBtn">
+                    <i data-lucide="file-spreadsheet" class="icon"></i>
+                    Export Excel
+                </button>
+<button class="copy-btn" id="clearBlacklistBtn" style="background: #e74c3c; margin-left: 10px;">
+    <i data-lucide="trash-2" class="icon"></i>
+    Pulisci Blacklist
+</button>
+<button class="copy-btn" id="clearWhitelistBtn" style="background: #27ae60; margin-left: 10px;">
+    <i data-lucide="check-square" class="icon"></i>
+    Pulisci Whitelist
+</button>
+<button class="copy-btn" id="clearAllListsBtn" style="background: #7f8c8d; margin-left: 10px;">
+    <i data-lucide="refresh-cw" class="icon"></i>
+    Reset Liste
+</button>
+                <button class="copy-btn" id="copyJsonBtn" style="display: none;">
+                    <i data-lucide="download" class="icon"></i>
+                    Scarica Lista
+                </button>
+                <button class="copy-btn" id="showAnalysisBtn">
+                    <i data-lucide="brain-circuit" class="icon"></i>
+                    Analisi AI
+                </button>
+            </div>
+            
+            <!-- AI ANALYSIS SECTION -->
+            <div id="aiAnalysisSection" class="ai-analysis" style="display: none;">
+                <h3>🤖 Analisi AI del Quartiere</h3>
+                <p style="margin-bottom: 15px;">L'analisi viene generata automaticamente dai dati raccolti:</p>
+                <div class="bot-container">
+                    <div class="ai-placeholder">
+                        <p style="text-align: center; color: #64748b; padding: 40px;">
+                            <i data-lucide="brain-circuit" class="icon" style="width: 48px; height: 48px; margin-bottom: 16px;"></i><br>
+                            Clicca su "Analisi AI" per generare l'analisi automatica del quartiere
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- MAP CONTAINER -->
+            <div class="map-container" id="map"></div>
+            
+            <!-- CATEGORIES GRID -->
+            <div class="categories-grid" id="categoriesGrid">
+                <!-- Le card delle categorie verranno popolate da JavaScript -->
+            </div>
+        </div>
+
+        <div id="loading" class="loading" style="display: none;">
+            Ricerca attrattori in corso...
+        </div>
+
+        <div id="errorMessage"></div>
+    </div>
+
+    <!-- MODAL PER DETTAGLIO CATEGORIA -->
+    <div id="categoryModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalCategoryTitle">Dettaglio Categoria</h3>
+                <button id="modalCloseBtn" class="modal-close-btn">&times;</button>
+            </div>
+            <div class="modal-filters">
+                <input type="text" id="modalSearchInput" placeholder="Filtra per nome...">
+                <select id="modalSubCategoryFilter" style="display: none;">
+                    <option value="">Tutte le Sotto-Categorie</option>
+                </select>
+            </div>
+            <div class="modal-places-list-container">
+                <div id="modalPlacesList" class="places-list">
+                    <!-- I luoghi verranno inseriti qui da JS -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <p id="modalItemsCount">0 elementi</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="common_utils.js"></script>
+    <script src="brands-config.js"></script>
+    <script src="context_analyzer.js"></script>
+    <script>
+        // Inizializza le icone Lucide dopo il caricamento della pagina
+        document.addEventListener('DOMContentLoaded', function() {
+            lucide.createIcons();
+        });
+    </script>
+</body>
+</html>

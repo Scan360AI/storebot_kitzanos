@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Storebot Pro - Matching Brand</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+</head>
+<body>
+<header class="suite-header">
+        <a href="index.html"><img src="logo.png" alt="Storebot Logo" class="logo"></a>
+        <nav class="suite-nav">
+            <a href="index.html" class="nav-link">Home</a>
+            <a href="settings.html" class="nav-link">Configurazione</a>
+            <a href="context_analyzer.html" class="nav-link">Analisi Contesto</a>
+            <a href="property_data_extractor.html" class="nav-link">Dati Immobile</a>
+            <a href="marketing_description_generator.html" class="nav-link">Descrizione Marketing</a>
+            <a href="brand_matcher.html" class="nav-link active">Matching Brand</a>
+            <a href="formaps_integration.html" class="nav-link">Formaps</a>
+            <a href="full_report.html" class="nav-link">Report</a>
+        </nav>
+    </header>
+
+
+    <main class="suite-main-content">
+        <section class="module-content-section">
+            <header class="module-header">
+                <h1><i data-lucide="git-compare-arrows"></i> Analisi Compatibilità Brand</h1>
+                <p>Scopri quali brand sono più adatti al tuo immobile e al suo contesto.</p>
+            </header>
+
+            <div id="messageContainer" class="message-container"></div>
+
+            <div class="form-group">
+                <label for="propertyDetailsForMatching"><i data-lucide="clipboard-check"></i> Dati Immobile (JSON - verranno pre-compilati):</label>
+                <textarea id="propertyDetailsForMatching" rows="8" placeholder="I dati dell'immobile verranno caricati automaticamente."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="neighborhoodContextForMatching"><i data-lucide="map"></i> Analisi Contesto Quartiere (verrà pre-compilata):</label>
+                <textarea id="neighborhoodContextForMatching" rows="8" placeholder="L'analisi del contesto verrà caricata automaticamente."></textarea>
+            </div>
+
+            <button id="runBrandMatchingBtn" class="btn btn-primary btn-large">
+                <i data-lucide="cpu"></i> Analizza Compatibilità
+            </button>
+
+            <div id="brandMatchingOutput" class="ai-output-box placeholder" style="margin-top: 30px;">
+                I risultati dell'analisi di matching brand appariranno qui...
+            </div>
+            <button id="copyBrandMatchTextBtn" class="btn btn-secondary" style="display:none; margin-top:15px;"><i data-lucide="copy"></i> Copia Analisi</button>
+
+        </section>
+    </main>
+
+    <footer class="suite-footer">
+        <p>&copy; 2024 Storebot Pro Suite.</p>
+    </footer>
+
+    <script src="common_utils.js"></script>
+<script src="brand-database.js"></script>
+    <script src="brand_matcher.js"></script>
+</body>
+</html>

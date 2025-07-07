@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Storebot Pro Suite - Configurazione API</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css"> <!-- CSS Comune -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+</head>
+<body>
+    <header class="suite-header">
+        <img src="logo.png" alt="Storebot Logo" class="logo">
+        <nav class="suite-nav">
+            <a href="index.html" class="nav-link">Home</a>
+            <a href="settings.html" class="nav-link active">Configurazione API</a>
+        </nav>
+    </header>
+
+    <main class="suite-main-content">
+        <section class="settings-section">
+            <h1>Configurazione API Keys</h1>
+            <p>Inserisci le tue chiavi API per abilitare tutte le funzionalità della suite.</p>
+
+            <div id="messageContainer" class="message-container"></div>
+
+            <div class="form-group">
+                <label for="gmapsApiKey"><i data-lucide="map-pin"></i> Google Maps API Key</label>
+                <input type="password" id="gmapsApiKey" placeholder="La tua Google Maps API Key">
+                <small>Necessaria per l'analisi del contesto quartiere e la geocodifica.</small>
+            </div>
+            <div class="form-group">
+                <label for="geminiApiKey"><i data-lucide="sparkles"></i> Google Gemini API Key</label>
+                <input type="password" id="geminiApiKey" placeholder="La tua Google Gemini API Key">
+                <small>Utilizzata per l'estrazione dati da PDF e la generazione di contenuti AI.</small>
+            </div>
+            <div class="form-group">
+                <label for="storebotChatBotId"><i data-lucide="bot"></i> Storebot Chat API Bot ID</label>
+                <input type="text" id="storebotChatBotId" placeholder="ID del tuo Bot Storebot Chat">
+                <small>Per l'analisi AI del quartiere e il matching brand.</small>
+            </div>
+            <button id="saveApiKeysBtn" class="btn btn-primary">
+                <i data-lucide="save"></i> Salva e Testa Configurazioni
+            </button>
+            <div class="api-key-statuses" style="margin-top: 20px; padding:10px; background-color:#f9f9f9; border-radius:5px;">
+                <h4>Stato Validazione API Keys:</h4>
+                <div id="gmapsApiStatus" class="api-key-status-item">
+                    <span class="api-dot pending"></span> Google Maps: In attesa...
+                </div>
+                <div id="geminiApiStatus" class="api-key-status-item">
+                    <span class="api-dot pending"></span> Gemini: In attesa...
+                </div>
+                <div id="botIdApiStatus" class="api-key-status-item">
+                    <span class="api-dot pending"></span> Storebot Bot ID: In attesa...
+                </div>
+                <div id="generalApiStatusSummary" class="api-status-indicator" style="margin-top:15px; text-align:left;">
+                    Clicca "Salva e Testa" per verificare.
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="suite-footer">
+        <p>&copy; 2024 Storebot Pro Suite.</p>
+    </footer>
+
+    <script src="common_utils.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+
+            const gmapsInput = document.getElementById('gmapsApiKey');
+            const geminiInput = document.getElementById('geminiApiKey');
+            const botIdInput = document.getElementById('storebotChatBotId');
+            const saveBtn = document.getElementById('saveApiKeysBtn');
+            
+            const gmapsStatusEl = document.getElementById('gmapsApiStatus');
+            const geminiStatusEl = document.getElementById('geminiApiStatus');
+            const botIdStatusEl = document.getElementById('botIdApiStatus');
+            const generalStatusDiv = document.getElementById('generalApiStatusSummary');
+
+            // Carica le chiavi salvate
+            gmapsInput.value = StorebotUtils.getApiKey('gmaps') || '';
+            geminiInput.value = StorebotUtils.getApiKey('gemini') || '';
+            botIdInput.value = StorebotUtils.getApiKey('botId') || '347a1615-5064-4530-ac82-ae4355adbdbd';
+
+            // Funzione per aggiornare tutti gli indicatori di stato
+            async function updateAllStatuses() {
+                await StorebotUtils.updateApiKeyStatusIndicator(
+                    generalStatusDiv,
+                    gmapsStatusEl,
+                    geminiStatusEl,
+                    botIdStatusEl
+                );
+                lucide.createIcons(); // Ri-renderizza le icone se cambiano (es. spin-icon)
+            }
+
+            saveBtn.addEventListener('click', async () => {
+                StorebotUtils.saveApiKey('gmaps', gmapsInput.value.trim());
+                StorebotUtils.saveApiKey('gemini', geminiInput.value.trim());
+                StorebotUtils.saveApiKey('botId', botIdInput.value.trim());
+                StorebotUtils.showTemporaryMessage('Configurazioni API salvate! Test in corso...', 'info');
+                await updateAllStatuses(); // Testa subito dopo aver salvato
+            });
+
+            // Esegui test all'avvio della pagina
+            updateAllStatuses();
+        });
+    </script>
+</body>
+</html>
