@@ -21,7 +21,10 @@ document.addEventListener('DOMContentLoaded', () => {
             reportAddressDisplay.textContent = currentAddress;
         }
 
-        generateReportBtn.addEventListener('click', displayFullReport);
+        generateReportBtn.addEventListener('click', async () => {
+    displayFullReport();
+    await saveToSupabase();
+});
         exportReportBtn.addEventListener('click', exportReportAsTxt);
         generateAISheetBtn.addEventListener('click', generateAIPropertySheet);
 
