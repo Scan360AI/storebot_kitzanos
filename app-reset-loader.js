@@ -55,16 +55,36 @@
             
         if (propError) throw new Error('Errore caricamento property: ' + propError.message);
         
-        // Salva i dati della property in localStorage
-        if (property) {
-            localStorage.setItem('storebot_currentAddress', property.address);
-            localStorage.setItem('storebot_lastAddress', property.address);
+// Salva i dati della property in localStorage
+if (property) {
+    localStorage.setItem('storebot_currentAddress', property.address);
+    localStorage.setItem('storebot_lastAddress', property.address);
+    
+    // Se ci sono metadata, salvali come propertyDetails
+    if (property.metadata && Object.keys(property.metadata).length > 0) {
+        // Estrai le immagini dai metadata
+        if (property.metadata.images && property.metadata.images.length > 0) {
+            // Prepara le immagini per marketing_description_generator
+            const marketingImages = property.metadata.images.map((img, index) => ({
+                id: Date.now() + index,
+                name: `Immagine ${index + 1}`,
+                dataUrl: img.url,
+                mimeType: 'image/jpeg',
+                type: 'url',
+                originalUrl: img.url
+            }));
             
-            // Se ci sono metadata, salvali come propertyDetails
-            if (property.metadata && Object.keys(property.metadata).length > 0) {
-                localStorage.setItem('storebot_propertyDetails', JSON.stringify(property.metadata));
-            }
+            localStorage.setItem('storebot_propertyImages', JSON.stringify(marketingImages));
+            
+            // Rimuovi images dai metadata prima di salvarli
+            const metadataWithoutImages = {...property.metadata};
+            delete metadataWithoutImages.images;
+            localStorage.setItem('storebot_propertyDetails', JSON.stringify(metadataWithoutImages));
+        } else {
+            localStorage.setItem('storebot_propertyDetails', JSON.stringify(property.metadata));
         }
+    }
+}
         
         // 4. RIMUOVI I PARAMETRI DALL'URL per evitare reset loop
         console.log('✅ Caricamento completato!');
