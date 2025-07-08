@@ -3,112 +3,293 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Storebot Pro Suite - Configurazione API</title>
+    <title>Storebot Pro - Configurazione API</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css"> <!-- CSS Comune -->
+    <link rel="stylesheet" href="style.css">
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <style>
+        .settings-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .api-key-section {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .api-key-section label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #111827;
+        }
+        
+        .input-with-button {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .api-key-input {
+            flex: 1;
+            padding: 10px 15px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+        
+        .help-text {
+            font-size: 13px;
+            color: #6b7280;
+            margin-top: 8px;
+            line-height: 1.5;
+        }
+        
+        .help-text a {
+            color: #1ABC9C;
+            text-decoration: none;
+        }
+        
+        .help-text a:hover {
+            text-decoration: underline;
+        }
+        
+        .api-status-section {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .api-status-indicator {
+            padding: 15px;
+            border-radius: 6px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .api-status-indicator.success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+        }
+        
+        .api-status-indicator.error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+        
+        .api-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 5px;
+        }
+        
+        .api-dot.valid {
+            background: #10b981;
+        }
+        
+        .api-dot.invalid {
+            background: #ef4444;
+        }
+        
+        .optional-badge {
+            display: inline-block;
+            background: #fef3c7;
+            color: #92400e;
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            margin-left: 8px;
+            font-weight: 500;
+        }
+        
+        .model-select-group {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #e5e7eb;
+        }
+        
+        .model-select {
+            width: 100%;
+            padding: 10px 15px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            background: white;
+            font-size: 14px;
+        }
+        
+        .model-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 5px;
+        }
+        
+        .price-tag {
+            background: #f3f4f6;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
 </head>
 <body>
     <header class="suite-header">
-        <img src="logo.png" alt="Storebot Logo" class="logo">
+        <a href="index.html"><img src="logo.png" alt="Storebot Logo" class="logo"></a>
         <nav class="suite-nav">
             <a href="index.html" class="nav-link">Home</a>
-            <a href="settings.html" class="nav-link active">Configurazione API</a>
+            <a href="settings.html" class="nav-link active">Configurazione</a>
+            <a href="context_analyzer.html" class="nav-link">Analisi Contesto</a>
+            <a href="property_data_extractor.html" class="nav-link">Dati Immobile</a>
+            <a href="marketing_description_generator.html" class="nav-link">Descrizione Marketing</a>
+            <a href="brand_matcher.html" class="nav-link">Matching Brand</a>
+            <a href="formaps_integration.html" class="nav-link">Formaps</a>
+            <a href="full_report.html" class="nav-link">Report</a>
         </nav>
     </header>
 
     <main class="suite-main-content">
-        <section class="settings-section">
-            <h1>Configurazione API Keys</h1>
-            <p>Inserisci le tue chiavi API per abilitare tutte le funzionalità della suite.</p>
+        <section class="module-content-section">
+            <header class="module-header">
+                <h1><i data-lucide="settings"></i> Configurazione API</h1>
+                <p>Gestisci le tue chiavi API e le impostazioni dell'applicazione</p>
+            </header>
 
             <div id="messageContainer" class="message-container"></div>
 
-            <div class="form-group">
-                <label for="gmapsApiKey"><i data-lucide="map-pin"></i> Google Maps API Key</label>
-                <input type="password" id="gmapsApiKey" placeholder="La tua Google Maps API Key">
-                <small>Necessaria per l'analisi del contesto quartiere e la geocodifica.</small>
-            </div>
-            <div class="form-group">
-                <label for="geminiApiKey"><i data-lucide="sparkles"></i> Google Gemini API Key</label>
-                <input type="password" id="geminiApiKey" placeholder="La tua Google Gemini API Key">
-                <small>Utilizzata per l'estrazione dati da PDF e la generazione di contenuti AI.</small>
-            </div>
-            <div class="form-group">
-                <label for="storebotChatBotId"><i data-lucide="bot"></i> Storebot Chat API Bot ID</label>
-                <input type="text" id="storebotChatBotId" placeholder="ID del tuo Bot Storebot Chat">
-                <small>Per l'analisi AI del quartiere e il matching brand.</small>
-            </div>
-            <button id="saveApiKeysBtn" class="btn btn-primary">
-                <i data-lucide="save"></i> Salva e Testa Configurazioni
-            </button>
-            <div class="api-key-statuses" style="margin-top: 20px; padding:10px; background-color:#f9f9f9; border-radius:5px;">
-                <h4>Stato Validazione API Keys:</h4>
-                <div id="gmapsApiStatus" class="api-key-status-item">
-                    <span class="api-dot pending"></span> Google Maps: In attesa...
+            <div class="settings-container">
+                <!-- Stato Generale API -->
+                <div class="api-status-section">
+                    <h3>Stato Generale API</h3>
+                    <div id="generalApiStatus" class="api-status-indicator">
+                        <i data-lucide="loader-2" class="spin-icon"></i> Verifica in corso...
+                    </div>
                 </div>
-                <div id="geminiApiStatus" class="api-key-status-item">
-                    <span class="api-dot pending"></span> Gemini: In attesa...
+
+                <!-- Google Maps API Key -->
+                <div class="api-key-section">
+                    <label for="gmapsApiKey">
+                        <i data-lucide="map"></i> Google Maps API Key
+                    </label>
+                    <div class="input-with-button">
+                        <input type="password" id="gmapsApiKey" placeholder="AIza..." class="api-key-input">
+                        <button id="saveGmapsKeyBtn" class="btn btn-primary">
+                            <i data-lucide="save"></i> Salva
+                        </button>
+                    </div>
+                    <div id="gmapsStatus"></div>
+                    <p class="help-text">
+                        Necessaria per geocodifica e ricerca luoghi. 
+                        <a href="https://console.cloud.google.com/apis/credentials" target="_blank">Ottieni API Key</a>
+                    </p>
                 </div>
-                <div id="botIdApiStatus" class="api-key-status-item">
-                    <span class="api-dot pending"></span> Storebot Bot ID: In attesa...
+
+                <!-- Gemini API Key -->
+                <div class="api-key-section">
+                    <label for="geminiApiKey">
+                        <i data-lucide="sparkles"></i> Google Gemini API Key
+                    </label>
+                    <div class="input-with-button">
+                        <input type="password" id="geminiApiKey" placeholder="AIza..." class="api-key-input">
+                        <button id="saveGeminiKeyBtn" class="btn btn-primary">
+                            <i data-lucide="save"></i> Salva
+                        </button>
+                    </div>
+                    <div id="geminiStatus"></div>
+                    <p class="help-text">
+                        Per generazione contenuti AI. 
+                        <a href="https://makersuite.google.com/app/apikey" target="_blank">Ottieni API Key</a>
+                    </p>
                 </div>
-                <div id="generalApiStatusSummary" class="api-status-indicator" style="margin-top:15px; text-align:left;">
-                    Clicca "Salva e Testa" per verificare.
+
+                <!-- Storebot Bot ID -->
+                <div class="api-key-section">
+                    <label for="botIdApiKey">
+                        <i data-lucide="bot"></i> Storebot Bot ID
+                    </label>
+                    <div class="input-with-button">
+                        <input type="text" id="botIdApiKey" placeholder="bot_..." class="api-key-input">
+                        <button id="saveBotIdBtn" class="btn btn-primary">
+                            <i data-lucide="save"></i> Salva
+                        </button>
+                    </div>
+                    <div id="botIdStatus"></div>
+                    <p class="help-text">
+                        ID del bot Storebot per analisi avanzate. Contatta il supporto per ottenerlo.
+                    </p>
+                </div>
+
+                <!-- OpenRouter API Key (NUOVA SEZIONE) -->
+                <div class="api-key-section">
+                    <label for="openrouterApiKey">
+                        <i data-lucide="zap"></i> OpenRouter API Key
+                        <span class="optional-badge">OPZIONALE</span>
+                    </label>
+                    <div class="input-with-button">
+                        <input type="password" id="openrouterApiKey" 
+                               placeholder="sk-or-..." 
+                               class="api-key-input">
+                        <button id="saveOpenrouterKeyBtn" class="btn btn-primary">
+                            <i data-lucide="save"></i> Salva
+                        </button>
+                    </div>
+                    <div id="openrouterStatus"></div>
+                    
+                    <!-- Selezione Modello -->
+                    <div class="model-select-group">
+                        <label for="openrouterModel">Modello AI per Report:</label>
+                        <select id="openrouterModel" class="model-select">
+                            <option value="google/gemini-2.0-flash">Gemini 2.0 Flash (Veloce)</option>
+                            <option value="google/gemini-pro">Gemini Pro (Bilanciato)</option>
+                            <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet (Premium)</option>
+                            <option value="openai/gpt-4o">GPT-4o (Premium)</option>
+                            <option value="meta-llama/llama-3.2-3b-instruct">Llama 3.2 (Economico)</option>
+                        </select>
+                        <div class="model-info">
+                            <span id="modelDescription">Modello veloce ed economico</span>
+                            <span class="price-tag" id="modelPrice">~$0.00015/1K token</span>
+                        </div>
+                    </div>
+                    
+                    <p class="help-text">
+                        Utilizzata solo per la generazione del report finale AI. 
+                        Se non configurata, verrà usata Gemini come fallback.
+                        <a href="https://openrouter.ai" target="_blank">Ottieni API Key</a>
+                    </p>
+                </div>
+
+                <!-- Test Tutte le API -->
+                <div style="text-align: center; margin-top: 30px;">
+                    <button id="testAllApisBtn" class="btn btn-secondary">
+                        <i data-lucide="shield-check"></i> Test Tutte le API
+                    </button>
                 </div>
             </div>
         </section>
     </main>
 
     <footer class="suite-footer">
-        <p>&copy; 2024 Storebot Pro Suite.</p>
+        <p>&copy; 2025 Masema Srl. Storebot Pro Suite - Tutti i diritti riservati.</p>
     </footer>
 
     <script src="common_utils.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            lucide.createIcons();
-
-            const gmapsInput = document.getElementById('gmapsApiKey');
-            const geminiInput = document.getElementById('geminiApiKey');
-            const botIdInput = document.getElementById('storebotChatBotId');
-            const saveBtn = document.getElementById('saveApiKeysBtn');
-            
-            const gmapsStatusEl = document.getElementById('gmapsApiStatus');
-            const geminiStatusEl = document.getElementById('geminiApiStatus');
-            const botIdStatusEl = document.getElementById('botIdApiStatus');
-            const generalStatusDiv = document.getElementById('generalApiStatusSummary');
-
-            // Carica le chiavi salvate
-            gmapsInput.value = StorebotUtils.getApiKey('gmaps') || '';
-            geminiInput.value = StorebotUtils.getApiKey('gemini') || '';
-            botIdInput.value = StorebotUtils.getApiKey('botId') || '347a1615-5064-4530-ac82-ae4355adbdbd';
-
-            // Funzione per aggiornare tutti gli indicatori di stato
-            async function updateAllStatuses() {
-                await StorebotUtils.updateApiKeyStatusIndicator(
-                    generalStatusDiv,
-                    gmapsStatusEl,
-                    geminiStatusEl,
-                    botIdStatusEl
-                );
-                lucide.createIcons(); // Ri-renderizza le icone se cambiano (es. spin-icon)
-            }
-
-            saveBtn.addEventListener('click', async () => {
-                StorebotUtils.saveApiKey('gmaps', gmapsInput.value.trim());
-                StorebotUtils.saveApiKey('gemini', geminiInput.value.trim());
-                StorebotUtils.saveApiKey('botId', botIdInput.value.trim());
-                StorebotUtils.showTemporaryMessage('Configurazioni API salvate! Test in corso...', 'info');
-                await updateAllStatuses(); // Testa subito dopo aver salvato
-            });
-
-            // Esegui test all'avvio della pagina
-            updateAllStatuses();
-        });
-    </script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js"></script>
-<script src="app-reset-loader.js"></script>
+    <script src="settings.js"></script>
 </body>
 </html>
