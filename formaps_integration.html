@@ -125,62 +125,7 @@
         <button id="openFormapsBtn" class="formaps-float-btn" onclick="openFormapsModal()" title="Apri Formaps">
             <i data-lucide="map"></i>
         </button>
-    `;
-
-    // Aggiungi il modal al body
-    document.body.insertAdjacentHTML('beforeend', modalHTML);
-
-    // Aggiungi gli stili CSS
-    addFormapsModalStyles();
-
-    // Inizializza Lucide per le nuove icone
-    lucide.createIcons();
-
-    // Apri automaticamente il modal
-    openFormapsModal();
-}
-
-// Funzioni per controllare il modal
-window.openFormapsModal = function() {
-    const modal = document.getElementById('formapsModal');
-    const floatBtn = document.getElementById('openFormapsBtn');
-    modal.style.display = 'flex';
-    floatBtn.style.display = 'none';
-    
-    // Mostra messaggio con l'indirizzo
-    if (currentAddress) {
-        StorebotUtils.showTemporaryMessage(
-            `📍 Cerca "${currentAddress}" in Formaps per l'analisi territoriale`,
-            'info',
-            5000
-        );
-    }
-};
-
-window.closeFormapsModal = function() {
-    const modal = document.getElementById('formapsModal');
-    const floatBtn = document.getElementById('openFormapsBtn');
-    modal.style.display = 'none';
-    floatBtn.style.display = 'block';
-};
-
-window.minimizeFormapsModal = function() {
-    const modal = document.querySelector('.formaps-modal-content');
-    modal.style.width = '400px';
-    modal.style.height = '300px';
-};
-
-window.maximizeFormapsModal = function() {
-    const modal = document.querySelector('.formaps-modal-content');
-    modal.style.width = '90vw';
-    modal.style.height = '90vh';
-};
-
-// Aggiungi gli stili CSS
-function addFormapsModalStyles() {
-    if (document.getElementById('formaps-modal-styles')) return;
-    
-    const styles = `
+   
         <style id="formaps-modal-styles">
             /* Modal Overlay */
             .formaps-modal {
