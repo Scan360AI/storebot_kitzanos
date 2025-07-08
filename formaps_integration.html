@@ -75,135 +75,22 @@
                     <span>Formaps offre analisi territoriali dettagliate inclusi dati demografici, flussi di traffico, competitor e molto altro.</span>
                 </div>
             </div>
-            
-        <div id="formapsModal" class="formaps-modal" style="display: none;">
-            <div class="formaps-modal-content">
-                <div class="formaps-modal-header">
-                    <h3>🗺️ Formaps - Analisi Territoriale</h3>
-                    <div class="modal-controls">
-                        <button class="btn-icon-small" onclick="minimizeFormapsModal()" title="Minimizza">
-                            <i data-lucide="minus"></i>
-                        </button>
-                        <button class="btn-icon-small" onclick="maximizeFormapsModal()" title="Massimizza">
-                            <i data-lucide="maximize-2"></i>
-                        </button>
-                        <button class="btn-icon-small" onclick="closeFormapsModal()" title="Chiudi">
-                            <i data-lucide="x"></i>
-                        </button>
-                    </div>
+
+            <!-- Container per l'iframe -->
+            <div class="iframe-container" id="formapsContainer">
+                <div class="iframe-loading" id="iframeLoading">
+                    <div class="loading-spinner"></div>
+                    <p>Caricamento Formaps in corso...</p>
                 </div>
-                <div class="formaps-modal-body">
-                    <iframe 
-                        id="formapsFrame"
-                        src="https://www.formaps.it/" 
-                        title="Formaps"
-                        style="width: 100%; height: 100%; border: none;"
-                    ></iframe>
-                </div>
+                <iframe 
+                    id="formapsIframe"
+                    src="https://www.formaps.it/" 
+                    title="Formaps - Analisi Territoriale"
+                    allowfullscreen
+                    allow="geolocation; camera"
+                    style="display: none;"
+                ></iframe>
             </div>
-        </div>
-        
-        <!-- Pulsante flottante per riaprire -->
-        <button id="openFormapsBtn" class="formaps-float-btn" onclick="openFormapsModal()" title="Apri Formaps">
-            <i data-lucide="map"></i>
-        </button>
-   
-        <style id="formaps-modal-styles">
-            /* Modal Overlay */
-            .formaps-modal {
-                display: none;
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background-color: rgba(0, 0, 0, 0.5);
-                z-index: 9999;
-                justify-content: center;
-                align-items: center;
-            }
-            
-            /* Modal Content */
-            .formaps-modal-content {
-                background: white;
-                width: 80vw;
-                height: 80vh;
-                max-width: 1200px;
-                border-radius: 12px;
-                box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-                display: flex;
-                flex-direction: column;
-                resize: both;
-                overflow: auto;
-                transition: all 0.3s ease;
-            }
-            
-            /* Modal Header */
-            .formaps-modal-header {
-                background: #f8f9fa;
-                padding: 15px 20px;
-                border-radius: 12px 12px 0 0;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                border-bottom: 1px solid #e9ecef;
-                cursor: move;
-            }
-            
-            .formaps-modal-header h3 {
-                margin: 0;
-                color: #2c3e50;
-                font-size: 18px;
-            }
-            
-            .modal-controls {
-                display: flex;
-                gap: 8px;
-            }
-            
-            /* Modal Body */
-            .formaps-modal-body {
-                flex: 1;
-                overflow: hidden;
-                border-radius: 0 0 12px 12px;
-            }
-            
-            /* Floating Button */
-            .formaps-float-btn {
-                position: fixed;
-                bottom: 30px;
-                right: 30px;
-                width: 60px;
-                height: 60px;
-                border-radius: 50%;
-                background: #1ABC9C;
-                color: white;
-                border: none;
-                box-shadow: 0 4px 12px rgba(26, 188, 156, 0.4);
-                cursor: pointer;
-                z-index: 9998;
-                display: none;
-                transition: all 0.3s ease;
-            }
-            
-            .formaps-float-btn:hover {
-                background: #16A085;
-                transform: scale(1.1);
-            }
-            
-            .formaps-float-btn i {
-                width: 24px;
-                height: 24px;
-            }
-            
-            /* Responsive */
-            @media (max-width: 768px) {
-                .formaps-modal-content {
-                    width: 95vw;
-                    height: 95vh;
-                }
-            }
-        </style>
 
             <!-- Sezione per note/appunti -->
             <div class="notes-section">
@@ -269,8 +156,5 @@
     <script src="common_utils.js"></script>
     <script src="formaps_integration.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js"></script>
-<script src="app-reset-loader.js"></script>
 </body>
 </html>

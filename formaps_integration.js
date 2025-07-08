@@ -1,402 +1,221 @@
 // formaps_integration.js - Logica per l'integrazione Formaps
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Variabili globali
-    let currentAddress = '';
+    // Elementi DOM
+    const iframe = document.getElementById('formapsIframe');
+    const iframeLoading = document.getElementById('iframeLoading');
+    const refreshBtn = document.getElementById('refreshFormapsBtn');
+    const openNewWindowBtn = document.getElementById('openNewWindowBtn');
+    const fullscreenBtn = document.getElementById('fullscreenBtn');
+    const notesTextarea = document.getElementById('formapsNotes');
+    const saveNotesBtn = document.getElementById('saveNotesBtn');
+    const formapsContainer = document.getElementById('formapsContainer');
+    
+    // Elementi per la barra indirizzo
+    const currentAddressDisplay = document.getElementById('currentAddressDisplay');
+    const copyAddressBtn = document.getElementById('copyAddressBtn');
+    const addressBar = document.getElementById('addressBar');
+
+    // Elemento per screenshot
+    const screenshotBtn = document.getElementById('screenshotBtn');
     let waitingForPaste = false;
+
+    // Variabile per l'indirizzo corrente
+    let currentAddress = '';
+
+    // Struttura per gestire i capitoli
     let chapters = JSON.parse(localStorage.getItem('storebot_formapsChapters')) || [];
     let chapterIdCounter = Date.now();
+
+    // Struttura per gestire le mappe
     let savedMaps = JSON.parse(localStorage.getItem('storebot_formapsMaps')) || [];
-    let mapIdCounter = Date.now() + 1000000;
+    let mapIdCounter = Date.now() + 1000000; // Offset per evitare conflitti con chapter IDs
 
     function initializeFormaps() {
         lucide.createIcons();
         StorebotUtils.checkApiKeysAndNotify();
 
-        // Carica indirizzo
-        currentAddress = localStorage.getItem('storebot_currentAddress') || '';
-        updateAddressDisplay();
+        // Carica e mostra l'indirizzo corrente
+        loadCurrentAddress();
 
         // Carica note salvate
-        const notesTextarea = document.getElementById('formapsNotes');
         const savedNotes = localStorage.getItem('storebot_formapsNotes');
-        if (savedNotes && notesTextarea) {
+        if (savedNotes) {
             notesTextarea.value = savedNotes;
         }
 
-        // Renderizza contenuti esistenti
+        // Renderizza capitoli esistenti
         renderChapters();
+
+        // Renderizza mappe esistenti
         renderMaps();
 
-        // Setup tutti gli event listeners
+        // Setup event listeners
         setupEventListeners();
+
+        // Setup global paste listener
         setupGlobalPasteListener();
 
-        // CREA IL MODAL FORMAPS
-        createFormapsModal();
-    }
+        // Mostra iframe quando caricato
+        iframe.addEventListener('load', () => {
+            iframeLoading.style.display = 'none';
+            iframe.style.display = 'block';
+            StorebotUtils.showTemporaryMessage('Formaps caricato con successo', 'success');
+        });
 
-    function createFormapsModal() {
-        // Nascondi vecchio container se esiste
-        const oldContainer = document.getElementById('formapsContainer');
-        if (oldContainer) {
-            oldContainer.style.display = 'none';
-        }
-
-        // Crea modal HTML
-        const modalHTML = `
-            <div id="formapsModal" class="formaps-modal" style="display: none;">
-                <div class="formaps-modal-content">
-                    <div class="formaps-modal-header">
-                        <h3>🗺️ Formaps - Analisi Territoriale</h3>
-                        <div class="modal-controls">
-                            <button class="btn-icon-small" onclick="minimizeFormapsModal()" title="Minimizza">
-                                <i data-lucide="minus"></i>
-                            </button>
-                            <button class="btn-icon-small" onclick="maximizeFormapsModal()" title="Massimizza">
-                                <i data-lucide="maximize-2"></i>
-                            </button>
-                            <button class="btn-icon-small" onclick="closeFormapsModal()" title="Chiudi">
-                                <i data-lucide="x"></i>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="formaps-modal-body">
-                        <iframe 
-                            id="formapsFrame"
-                            src="https://www.formaps.it/" 
-                            title="Formaps"
-                            style="width: 100%; height: 100%; border: none;"
-                        ></iframe>
-                    </div>
+        // Gestione errori iframe
+        iframe.addEventListener('error', () => {
+            iframeLoading.innerHTML = `
+                <div class="error-message">
+                    <i data-lucide="alert-triangle"></i>
+                    <p>Impossibile caricare Formaps. Verifica la connessione internet.</p>
+                    <button class="btn btn-secondary" onclick="location.reload()">
+                        <i data-lucide="refresh-cw"></i> Riprova
+                    </button>
                 </div>
-            </div>
-            
-            <button id="openFormapsBtn" class="formaps-float-btn" onclick="openFormapsModal()" title="Apri Formaps">
-                <i data-lucide="map"></i>
-            </button>
-        `;
-
-        // Aggiungi al body
-        document.body.insertAdjacentHTML('beforeend', modalHTML);
-
-        // Aggiungi stili CSS
-        addFormapsModalStyles();
-
-        // Reinizializza icone
-        lucide.createIcons();
-
-        // Apri automaticamente
-        setTimeout(() => {
-            openFormapsModal();
-        }, 500);
+            `;
+            lucide.createIcons();
+        });
     }
 
-    function addFormapsModalStyles() {
-        if (document.getElementById('formaps-modal-styles')) return;
+    function loadCurrentAddress() {
+        currentAddress = localStorage.getItem('storebot_currentAddress') || '';
         
-        const styles = document.createElement('style');
-        styles.id = 'formaps-modal-styles';
-        styles.textContent = `
-            .formaps-modal {
-                display: none;
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background-color: rgba(0, 0, 0, 0.5);
-                z-index: 9999;
-                justify-content: center;
-                align-items: center;
-            }
-            
-            .formaps-modal-content {
-                background: white;
-                width: 80vw;
-                height: 80vh;
-                max-width: 1200px;
-                border-radius: 12px;
-                box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-                display: flex;
-                flex-direction: column;
-                transition: all 0.3s ease;
-            }
-            
-            .formaps-modal-header {
-                background: #f8f9fa;
-                padding: 15px 20px;
-                border-radius: 12px 12px 0 0;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                border-bottom: 1px solid #e9ecef;
-            }
-            
-            .formaps-modal-header h3 {
-                margin: 0;
-                color: #2c3e50;
-                font-size: 18px;
-            }
-            
-            .modal-controls {
-                display: flex;
-                gap: 8px;
-            }
-            
-            .formaps-modal-body {
-                flex: 1;
-                overflow: hidden;
-                border-radius: 0 0 12px 12px;
-            }
-            
-            .formaps-float-btn {
-                position: fixed;
-                bottom: 30px;
-                right: 30px;
-                width: 60px;
-                height: 60px;
-                border-radius: 50%;
-                background: #1ABC9C;
-                color: white;
-                border: none;
-                box-shadow: 0 4px 12px rgba(26, 188, 156, 0.4);
-                cursor: pointer;
-                z-index: 9998;
-                display: none;
-                transition: all 0.3s ease;
-            }
-            
-            .formaps-float-btn:hover {
-                background: #16A085;
-                transform: scale(1.1);
-            }
-            
-            .formaps-float-btn i {
-                width: 24px;
-                height: 24px;
-            }
-        `;
-        document.head.appendChild(styles);
-    }
-
-    // Funzioni globali per il modal
-    window.openFormapsModal = function() {
-        const modal = document.getElementById('formapsModal');
-        const floatBtn = document.getElementById('openFormapsBtn');
-        if (modal) {
-            modal.style.display = 'flex';
-            if (floatBtn) floatBtn.style.display = 'none';
-            
-            if (currentAddress) {
-                StorebotUtils.showTemporaryMessage(
-                    `📍 Cerca "${currentAddress}" in Formaps per l'analisi territoriale`,
-                    'info',
-                    5000
-                );
-            }
-        }
-    };
-
-    window.closeFormapsModal = function() {
-        const modal = document.getElementById('formapsModal');
-        const floatBtn = document.getElementById('openFormapsBtn');
-        if (modal) modal.style.display = 'none';
-        if (floatBtn) floatBtn.style.display = 'block';
-    };
-
-    window.minimizeFormapsModal = function() {
-        const modal = document.querySelector('.formaps-modal-content');
-        if (modal) {
-            modal.style.width = '400px';
-            modal.style.height = '300px';
-        }
-    };
-
-    window.maximizeFormapsModal = function() {
-        const modal = document.querySelector('.formaps-modal-content');
-        if (modal) {
-            modal.style.width = '90vw';
-            modal.style.height = '90vh';
-        }
-    };
-
-    function updateAddressDisplay() {
-        const currentAddressDisplay = document.getElementById('currentAddressDisplay');
-        const copyAddressBtn = document.getElementById('copyAddressBtn');
-        const addressBar = document.getElementById('addressBar');
-        
-        if (currentAddress && currentAddressDisplay) {
+        if (currentAddress) {
             currentAddressDisplay.textContent = currentAddress;
             currentAddressDisplay.classList.add('has-address');
-            if (copyAddressBtn) copyAddressBtn.style.display = 'flex';
-            if (addressBar) addressBar.classList.add('has-address');
-        } else if (currentAddressDisplay) {
+            copyAddressBtn.style.display = 'flex';
+            addressBar.classList.add('has-address');
+            
+            // Mostra suggerimento temporaneo
+            StorebotUtils.showTemporaryMessage(
+                `Copia l'indirizzo "${currentAddress}" e cercalo in Formaps per l'analisi territoriale`,
+                'info',
+                6000
+            );
+        } else {
             currentAddressDisplay.textContent = 'Nessun indirizzo selezionato';
             currentAddressDisplay.classList.remove('has-address');
-            if (copyAddressBtn) copyAddressBtn.style.display = 'none';
-            if (addressBar) addressBar.classList.remove('has-address');
+            copyAddressBtn.style.display = 'none';
+            addressBar.classList.remove('has-address');
         }
     }
 
     function setupEventListeners() {
-        // Bottone copia indirizzo
-        const copyAddressBtn = document.getElementById('copyAddressBtn');
-        if (copyAddressBtn) {
-            copyAddressBtn.addEventListener('click', copyAddress);
-        }
+        // Copia indirizzo
+        copyAddressBtn.addEventListener('click', copyAddress);
 
-        // Bottone refresh (ora apre/riapre il modal)
-        const refreshBtn = document.getElementById('refreshFormapsBtn');
-        if (refreshBtn) {
-            refreshBtn.addEventListener('click', () => {
-                const frame = document.getElementById('formapsFrame');
-                if (frame) {
-                    frame.src = frame.src; // Ricarica
-                }
-                openFormapsModal();
-            });
-        }
+        // Refresh iframe
+        refreshBtn.addEventListener('click', () => {
+            iframeLoading.style.display = 'flex';
+            iframe.style.display = 'none';
+            iframe.src = iframe.src; // Ricarica l'iframe
+        });
 
-        // Bottone nuova finestra (ora apre il modal)
-        const openNewWindowBtn = document.getElementById('openNewWindowBtn');
-        if (openNewWindowBtn) {
-            openNewWindowBtn.addEventListener('click', () => {
-                openFormapsModal();
-            });
-        }
+        // Apri in nuova finestra
+        openNewWindowBtn.addEventListener('click', () => {
+            window.open('https://www.formaps.it/', '_blank');
+        });
 
-        // Bottone fullscreen
-        const fullscreenBtn = document.getElementById('fullscreenBtn');
-        if (fullscreenBtn) {
-            fullscreenBtn.addEventListener('click', () => {
-                maximizeFormapsModal();
-                openFormapsModal();
-            });
-        }
+        // Schermo intero
+        fullscreenBtn.addEventListener('click', toggleFullscreen);
 
-        // Screenshot
-        const screenshotBtn = document.getElementById('screenshotBtn');
-        if (screenshotBtn) {
-            screenshotBtn.addEventListener('click', activateScreenshotMode);
-        }
+        // Salva note
+        saveNotesBtn.addEventListener('click', saveNotes);
 
-        // AI Analysis
+        // Auto-save delle note
+        notesTextarea.addEventListener('input', debounce(() => {
+            localStorage.setItem('storebot_formapsNotes', notesTextarea.value);
+        }, 1000));
+
+        // Screenshot - attiva modalità cattura
+        screenshotBtn.addEventListener('click', activateScreenshotMode);
+
+        // AI Analysis button
         const aiAnalyzeBtn = document.getElementById('aiAnalyzeBtn');
-        if (aiAnalyzeBtn) {
-            aiAnalyzeBtn.addEventListener('click', handleAIAnalysis);
-        }
+        aiAnalyzeBtn.addEventListener('click', handleAIAnalysis);
 
-        // Save Map
-        const saveMapBtn = document.getElementById('saveMapBtn');
-        if (saveMapBtn) {
-            saveMapBtn.addEventListener('click', handleSaveAsMap);
-        }
+        // Save Map button
+        document.getElementById('saveMapBtn').addEventListener('click', handleSaveAsMap);
 
-        // Note
-        const saveNotesBtn = document.getElementById('saveNotesBtn');
-        if (saveNotesBtn) {
-            saveNotesBtn.addEventListener('click', saveNotes);
-        }
-
-        const notesTextarea = document.getElementById('formapsNotes');
-        if (notesTextarea) {
-            notesTextarea.addEventListener('input', debounce(() => {
-                localStorage.setItem('storebot_formapsNotes', notesTextarea.value);
-            }, 1000));
-        }
-
-        // Bottoni capitoli
-        setupChapterButtons();
-        
-        // Bottoni mappe
-        setupMapButtons();
-    }
-
-    function setupChapterButtons() {
-        const collapseAllBtn = document.getElementById('collapseAllBtn');
-        if (collapseAllBtn) {
-            collapseAllBtn.addEventListener('click', () => {
-                chapters.forEach(chapter => {
-                    const content = document.getElementById(`chapter-content-${chapter.id}`);
-                    const toggle = document.querySelector(`[data-chapter-id="${chapter.id}"] .chapter-toggle`);
-                    if (content) content.style.display = 'none';
-                    if (toggle) toggle.style.transform = 'rotate(-90deg)';
-                });
-            });
-        }
-
-        const expandAllBtn = document.getElementById('expandAllBtn');
-        if (expandAllBtn) {
-            expandAllBtn.addEventListener('click', () => {
-                chapters.forEach(chapter => {
-                    const content = document.getElementById(`chapter-content-${chapter.id}`);
-                    const toggle = document.querySelector(`[data-chapter-id="${chapter.id}"] .chapter-toggle`);
-                    if (content) content.style.display = 'block';
-                    if (toggle) toggle.style.transform = 'rotate(0deg)';
-                });
-            });
-        }
-
-        const clearAllChaptersBtn = document.getElementById('clearAllChaptersBtn');
-        if (clearAllChaptersBtn) {
-            clearAllChaptersBtn.addEventListener('click', () => {
-                if (chapters.length === 0) {
-                    StorebotUtils.showTemporaryMessage('Nessun capitolo da eliminare', 'info');
-                    return;
-                }
-                
-                if (confirm(`Sei sicuro di voler eliminare tutti i ${chapters.length} capitoli?`)) {
-                    chapters = [];
-                    saveChapters();
-                    renderChapters();
-                    StorebotUtils.showTemporaryMessage('Tutti i capitoli eliminati', 'success');
+        // Capitoli controls
+        document.getElementById('collapseAllBtn').addEventListener('click', () => {
+            chapters.forEach(chapter => {
+                const content = document.getElementById(`chapter-content-${chapter.id}`);
+                const toggle = document.querySelector(`[data-chapter-id="${chapter.id}"] .chapter-toggle`);
+                if (content && toggle) {
+                    content.style.display = 'none';
+                    toggle.style.transform = 'rotate(-90deg)';
                 }
             });
-        }
+        });
 
-        const transferToReportBtn = document.getElementById('transferToReportBtn');
-        if (transferToReportBtn) {
-            transferToReportBtn.addEventListener('click', () => {
-                const reportData = {
-                    timestamp: new Date().toISOString(),
-                    address: currentAddress,
-                    chapters: chapters,
-                    manualNotes: document.getElementById('formapsNotes')?.value || '',
-                    maps: savedMaps
-                };
-                
-                localStorage.setItem('storebot_formapsReportData', JSON.stringify(reportData));
-                StorebotUtils.showTemporaryMessage('Dati pronti per il Report Consolidato', 'success');
-                
-                if (confirm('Vuoi aprire il Report Consolidato ora?')) {
-                    window.location.href = 'full_report.html';
+        document.getElementById('expandAllBtn').addEventListener('click', () => {
+            chapters.forEach(chapter => {
+                const content = document.getElementById(`chapter-content-${chapter.id}`);
+                const toggle = document.querySelector(`[data-chapter-id="${chapter.id}"] .chapter-toggle`);
+                if (content && toggle) {
+                    content.style.display = 'block';
+                    toggle.style.transform = 'rotate(0deg)';
                 }
             });
-        }
-    }
+        });
 
-    function setupMapButtons() {
-        const clearAllMapsBtn = document.getElementById('clearAllMapsBtn');
-        if (clearAllMapsBtn) {
-            clearAllMapsBtn.addEventListener('click', () => {
-                if (savedMaps.length === 0) {
-                    StorebotUtils.showTemporaryMessage('Nessuna mappa da eliminare', 'info');
-                    return;
-                }
-                
-                if (confirm(`Eliminare tutte le ${savedMaps.length} mappe?`)) {
-                    savedMaps = [];
-                    saveMaps();
-                    renderMaps();
-                    StorebotUtils.showTemporaryMessage('Tutte le mappe eliminate', 'success');
-                }
-            });
-        }
+        // Clear all chapters button
+        document.getElementById('clearAllChaptersBtn').addEventListener('click', () => {
+            if (chapters.length === 0) {
+                StorebotUtils.showTemporaryMessage('Nessun capitolo da eliminare', 'info');
+                return;
+            }
+            
+            if (confirm(`Sei sicuro di voler eliminare tutti i ${chapters.length} capitoli? Questa azione non può essere annullata.`)) {
+                chapters = [];
+                saveChapters();
+                renderChapters();
+                StorebotUtils.showTemporaryMessage('Tutti i capitoli sono stati eliminati', 'success');
+            }
+        });
+
+        // Transfer to Report button
+        document.getElementById('transferToReportBtn').addEventListener('click', () => {
+            const reportData = {
+                timestamp: new Date().toISOString(),
+                address: currentAddress,
+                chapters: chapters,
+                manualNotes: notesTextarea.value,
+                maps: savedMaps
+            };
+            
+            // Salva in localStorage per Full Report
+            localStorage.setItem('storebot_formapsReportData', JSON.stringify(reportData));
+            
+            StorebotUtils.showTemporaryMessage('Dati pronti per il trasferimento al Report Consolidato', 'success');
+            
+            // Opzionale: apri la pagina del report
+            if (confirm('Vuoi aprire il Report Consolidato ora?')) {
+                window.location.href = 'full_report.html';
+            }
+        });
+
+        // Clear all maps button
+        document.getElementById('clearAllMapsBtn').addEventListener('click', () => {
+            if (savedMaps.length === 0) {
+                StorebotUtils.showTemporaryMessage('Nessuna mappa da eliminare', 'info');
+                return;
+            }
+            
+            if (confirm(`Eliminare tutte le ${savedMaps.length} mappe?`)) {
+                savedMaps = [];
+                saveMaps();
+                renderMaps();
+                StorebotUtils.showTemporaryMessage('Tutte le mappe eliminate', 'success');
+            }
+        });
     }
 
     function setupGlobalPasteListener() {
         document.addEventListener('paste', async (e) => {
+            // Solo se siamo in attesa di uno screenshot
             if (!waitingForPaste) return;
             
             e.preventDefault();
@@ -405,8 +224,7 @@ document.addEventListener('DOMContentLoaded', () => {
             for (let item of items) {
                 if (item.type.indexOf('image') !== -1) {
                     waitingForPaste = false;
-                    const screenshotBtn = document.getElementById('screenshotBtn');
-                    if (screenshotBtn) screenshotBtn.classList.remove('active');
+                    screenshotBtn.classList.remove('active');
                     
                     const blob = item.getAsFile();
                     const reader = new FileReader();
@@ -424,19 +242,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function activateScreenshotMode() {
         waitingForPaste = true;
-        const screenshotBtn = document.getElementById('screenshotBtn');
-        if (screenshotBtn) screenshotBtn.classList.add('active');
+        screenshotBtn.classList.add('active');
         
+        // Mostra istruzioni
         StorebotUtils.showTemporaryMessage(
-            '📸 Usa Win+Shift+S (o Cmd+Shift+4 su Mac) per catturare, poi premi Ctrl+V',
+            '📸 Usa Win+Shift+S (o Cmd+Shift+4 su Mac) per catturare, poi premi Ctrl+V per analizzare',
             'info',
             8000
         );
         
+        // Timeout dopo 30 secondi
         setTimeout(() => {
             if (waitingForPaste) {
                 waitingForPaste = false;
-                if (screenshotBtn) screenshotBtn.classList.remove('active');
+                screenshotBtn.classList.remove('active');
                 StorebotUtils.showTemporaryMessage('Modalità cattura disattivata', 'warning');
             }
         }, 30000);
@@ -444,6 +263,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function handleAIAnalysis() {
         try {
+            // Leggi clipboard
             const clipboardItems = await navigator.clipboard.read();
             let imageFound = false;
             
@@ -453,7 +273,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const reader = new FileReader();
                     
                     reader.onload = async (e) => {
-                        await analyzeScreenshotWithGemini(e.target.result, true);
+                        await analyzeScreenshotWithGemini(e.target.result, true); // true = save as chapter
                     };
                     
                     reader.readAsDataURL(blob);
@@ -463,10 +283,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             
             if (!imageFound) {
-                StorebotUtils.showTemporaryMessage('Nessuna immagine trovata negli appunti', 'warning');
+                StorebotUtils.showTemporaryMessage('Nessuna immagine trovata negli appunti. Cattura prima uno screenshot.', 'warning');
             }
         } catch (error) {
-            StorebotUtils.showTemporaryMessage('Errore accesso clipboard', 'error');
+            console.error('Errore accesso clipboard:', error);
+            StorebotUtils.showTemporaryMessage('Errore nell\'accesso agli appunti. Verifica i permessi del browser.', 'error');
         }
     }
 
@@ -491,10 +312,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             
             if (!imageFound) {
-                StorebotUtils.showTemporaryMessage('Nessuna immagine trovata negli appunti', 'warning');
+                StorebotUtils.showTemporaryMessage('Nessuna immagine trovata negli appunti. Cattura prima uno screenshot.', 'warning');
             }
         } catch (error) {
-            StorebotUtils.showTemporaryMessage('Errore accesso clipboard', 'error');
+            console.error('Errore accesso clipboard:', error);
+            StorebotUtils.showTemporaryMessage('Errore nell\'accesso agli appunti.', 'error');
         }
     }
 
@@ -505,7 +327,7 @@ document.addEventListener('DOMContentLoaded', () => {
             imageUrl: imageDataUrl,
             timestamp: new Date().toISOString(),
             address: currentAddress,
-            notes: ''
+            notes: '' // Campo per note future sulla mappa
         };
         
         savedMaps.unshift(newMap);
@@ -522,31 +344,53 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         
-        StorebotUtils.showGlobalLoading('Analisi screenshot con AI...');
+        StorebotUtils.showGlobalLoading('Analisi screenshot con AI in corso...');
         
-        const prompt = `Analizza questa schermata da Formaps e estrai TUTTI i dati visibili.`;
+        const prompt = `Analizza questa schermata catturata da Formaps (piattaforma di analisi territoriale) e:
+1. Estrai TUTTI i dati visibili (numeri, percentuali, nomi, valori, metriche)
+2. Se ci sono dati demografici, elencali in formato tabella usando la sintassi Markdown
+3. Se ci sono informazioni su competitor o attività commerciali, organizzale per categoria
+4. Se ci sono grafici o mappe, descrivi dettagliatamente i valori e le informazioni territoriali
+5. Organizza tutto in formato strutturato con titoli chiari usando Markdown (##, ###, liste con -, tabelle con |)
+
+IMPORTANTE: 
+- Includi SOLO sezioni che contengono dati effettivi
+- NON includere sezioni vuote o con frasi tipo "non sono presenti dati"
+- Inizia con un titolo breve e descrittivo (max 50 caratteri) che riassuma il contenuto principale della schermata
+- Usa formato Markdown per tabelle, liste ed evidenziazioni
+
+Formatta la risposta in Markdown professionale e leggibile.`;
 
         try {
+            // Prepara l'immagine per l'API
             const imagePart = {
                 inlineData: {
                     mimeType: 'image/png',
-                    data: imageDataUrl.split(',')[1]
+                    data: imageDataUrl.split(',')[1] // Rimuovi il prefisso data:image/png;base64,
                 }
             };
             
+            // Chiama Gemini usando la funzione esistente
             const result = await StorebotUtils.callGeminiAPI(prompt, [imagePart]);
             
             if (saveAsChapter) {
+                // Estrai il titolo dal risultato (prima riga o primo heading)
                 let title = 'Analisi Formaps';
                 const lines = result.split('\n');
                 for (let line of lines) {
                     const trimmed = line.trim();
                     if (trimmed && !trimmed.startsWith('#')) {
+                        // Prima riga non vuota e non heading
                         title = trimmed.substring(0, 60);
+                        break;
+                    } else if (trimmed.startsWith('#')) {
+                        // Primo heading
+                        title = trimmed.replace(/^#+\s*/, '').substring(0, 60);
                         break;
                     }
                 }
                 
+                // Crea nuovo capitolo
                 const newChapter = {
                     id: chapterIdCounter++,
                     title: title,
@@ -555,142 +399,42 @@ document.addEventListener('DOMContentLoaded', () => {
                     address: currentAddress
                 };
                 
-                chapters.unshift(newChapter);
+                chapters.unshift(newChapter); // Aggiungi all'inizio
                 saveChapters();
                 renderChapters();
                 
-                StorebotUtils.showTemporaryMessage('✅ Analisi completata e salvata!', 'success');
+                StorebotUtils.showTemporaryMessage('✅ Analisi completata e salvata come nuovo capitolo!', 'success');
             } else {
-                const notesTextarea = document.getElementById('formapsNotes');
-                if (notesTextarea) {
-                    const currentNotes = notesTextarea.value;
-                    const timestamp = new Date().toLocaleString('it-IT');
-                    const separator = currentNotes ? '\n\n' + '='.repeat(50) + '\n\n' : '';
-                    
-                    notesTextarea.value = currentNotes + separator + 
-                        `📸 ANALISI FORMAPS - ${timestamp}\n` +
-                        `📍 Indirizzo: ${currentAddress || 'Non specificato'}\n\n` + 
-                        result;
-                    
-                    localStorage.setItem('storebot_formapsNotes', notesTextarea.value);
-                    notesTextarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    
-                    StorebotUtils.showTemporaryMessage('✅ Dati estratti e aggiunti alle note!', 'success');
-                }
+                // Comportamento esistente per la textarea
+                const currentNotes = notesTextarea.value;
+                const timestamp = new Date().toLocaleString('it-IT');
+                const separator = currentNotes ? '\n\n' + '='.repeat(50) + '\n\n' : '';
+                
+                notesTextarea.value = currentNotes + separator + 
+                    `📸 ANALISI FORMAPS - ${timestamp}\n` +
+                    `📍 Indirizzo di riferimento: ${currentAddress || 'Non specificato'}\n\n` + 
+                    result;
+                
+                // Salva automaticamente
+                localStorage.setItem('storebot_formapsNotes', notesTextarea.value);
+                
+                // Scrolla alle note con evidenziazione
+                notesTextarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                notesTextarea.style.backgroundColor = '#E8F8F5';
+                notesTextarea.style.transition = 'background-color 0.3s ease';
+                setTimeout(() => {
+                    notesTextarea.style.backgroundColor = '';
+                }, 2000);
+                
+                StorebotUtils.showTemporaryMessage('✅ Dati Formaps estratti e aggiunti alle note!', 'success');
             }
+            
         } catch (error) {
-            StorebotUtils.showTemporaryMessage('❌ Errore analisi', 'error');
+            console.error('Errore analisi Gemini:', error);
+            StorebotUtils.showTemporaryMessage('❌ Errore durante l\'analisi dello screenshot', 'error');
         } finally {
             StorebotUtils.hideGlobalLoading();
         }
-    }
-
-    function copyAddress() {
-        if (!currentAddress) return;
-
-        navigator.clipboard.writeText(currentAddress).then(() => {
-            const copyAddressBtn = document.getElementById('copyAddressBtn');
-            if (copyAddressBtn) {
-                const originalHTML = copyAddressBtn.innerHTML;
-                copyAddressBtn.innerHTML = '<i data-lucide="check"></i> Copiato!';
-                copyAddressBtn.classList.add('copied');
-                
-                setTimeout(() => {
-                    copyAddressBtn.innerHTML = originalHTML;
-                    copyAddressBtn.classList.remove('copied');
-                    lucide.createIcons();
-                }, 2000);
-            }
-            
-            StorebotUtils.showTemporaryMessage('Indirizzo copiato!', 'success');
-        }).catch(err => {
-            StorebotUtils.showTemporaryMessage('Errore copia', 'error');
-        });
-    }
-
-    function saveNotes() {
-        const notesTextarea = document.getElementById('formapsNotes');
-        if (notesTextarea) {
-            const notes = notesTextarea.value.trim();
-            localStorage.setItem('storebot_formapsNotes', notes);
-            
-            const formapsAnalysis = {
-                timestamp: new Date().toISOString(),
-                notes: notes,
-                currentAddress: currentAddress || null
-            };
-            localStorage.setItem('storebot_formapsAnalysis', JSON.stringify(formapsAnalysis));
-            
-            StorebotUtils.showTemporaryMessage('Note salvate!', 'success');
-        }
-    }
-
-    function saveChapters() {
-        localStorage.setItem('storebot_formapsChapters', JSON.stringify(chapters));
-    }
-
-    function saveMaps() {
-        localStorage.setItem('storebot_formapsMaps', JSON.stringify(savedMaps));
-    }
-
-    function renderChapters() {
-        const container = document.getElementById('chaptersContainer');
-        if (!container) return;
-        
-        container.innerHTML = '';
-        
-        if (chapters.length === 0) {
-            container.innerHTML = '<p style="text-align: center; color: #999; padding: 20px;">Nessun capitolo salvato.</p>';
-            return;
-        }
-        
-        chapters.forEach(chapter => {
-            container.appendChild(createChapterElement(chapter));
-        });
-        
-        lucide.createIcons();
-    }
-
-    function renderMaps() {
-        const container = document.getElementById('mapsContainer');
-        if (!container) return;
-        
-        container.innerHTML = '';
-        
-        if (savedMaps.length === 0) {
-            container.innerHTML = '<p style="text-align: center; color: #999; padding: 20px;">Nessuna mappa salvata.</p>';
-            return;
-        }
-        
-        savedMaps.forEach(map => {
-            const mapDiv = document.createElement('div');
-            mapDiv.className = 'map-item';
-            mapDiv.innerHTML = `
-                <div class="map-thumbnail-wrapper" onclick="viewMapFullscreen('${map.id}')">
-                    <img src="${map.imageUrl}" alt="${map.title}" class="map-thumbnail">
-                    <div class="map-overlay">
-                        <i data-lucide="maximize-2" class="map-overlay-icon"></i>
-                    </div>
-                </div>
-                <div class="map-info">
-                    <div class="map-title">${map.title}</div>
-                    <div class="map-actions">
-                        <button class="btn-icon-map" onclick="event.stopPropagation(); viewMapFullscreen('${map.id}')" title="Visualizza">
-                            <i data-lucide="eye"></i>
-                        </button>
-                        <button class="btn-icon-map" onclick="event.stopPropagation(); downloadMap('${map.id}')" title="Scarica">
-                            <i data-lucide="download"></i>
-                        </button>
-                        <button class="btn-icon-map" onclick="event.stopPropagation(); deleteMap('${map.id}')" title="Elimina">
-                            <i data-lucide="trash-2"></i>
-                        </button>
-                    </div>
-                </div>
-            `;
-            container.appendChild(mapDiv);
-        });
-        
-        lucide.createIcons();
     }
 
     function createChapterElement(chapter) {
@@ -725,38 +469,167 @@ document.addEventListener('DOMContentLoaded', () => {
         return chapterDiv;
     }
 
+    function renderChapters() {
+        const container = document.getElementById('chaptersContainer');
+        container.innerHTML = '';
+        
+        if (chapters.length === 0) {
+            container.innerHTML = '<p style="text-align: center; color: #999; padding: 20px;">Nessun capitolo salvato. Usa il pulsante AI per analizzare screenshot.</p>';
+            return;
+        }
+        
+        chapters.forEach(chapter => {
+            container.appendChild(createChapterElement(chapter));
+        });
+        
+        lucide.createIcons();
+    }
+
+    function saveChapters() {
+        localStorage.setItem('storebot_formapsChapters', JSON.stringify(chapters));
+    }
+
+    function saveMaps() {
+        localStorage.setItem('storebot_formapsMaps', JSON.stringify(savedMaps));
+    }
+
+   function renderMaps() {
+    const container = document.getElementById('mapsContainer');
+    container.innerHTML = '';
+    
+    if (savedMaps.length === 0) {
+        container.innerHTML = '<p style="text-align: center; color: #999; padding: 20px;">Nessuna mappa salvata. Usa il pulsante mappa per salvare screenshot.</p>';
+        return;
+    }
+    
+    savedMaps.forEach(map => {
+        const mapDiv = document.createElement('div');
+        mapDiv.className = 'map-item';
+        mapDiv.innerHTML = `
+            <div class="map-thumbnail-wrapper" onclick="viewMapFullscreen('${map.id}')">
+                <img src="${map.imageUrl}" alt="${map.title}" class="map-thumbnail">
+                <div class="map-overlay">
+                    <i data-lucide="maximize-2" class="map-overlay-icon"></i>
+                </div>
+            </div>
+            <div class="map-info">
+                <div class="map-title">${map.title}</div>
+                <div class="map-actions">
+                    <button class="btn-icon-map" onclick="event.stopPropagation(); viewMapFullscreen('${map.id}')" title="Visualizza">
+                        <i data-lucide="eye"></i>
+                    </button>
+                    <button class="btn-icon-map" onclick="event.stopPropagation(); downloadMap('${map.id}')" title="Scarica">
+                        <i data-lucide="download"></i>
+                    </button>
+                    <button class="btn-icon-map" onclick="event.stopPropagation(); deleteMap('${map.id}')" title="Elimina">
+                        <i data-lucide="trash-2"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+        container.appendChild(mapDiv);
+    });
+    
+    lucide.createIcons();
+}
+
     function formatChapterContent(content) {
+        // Parser Markdown avanzato per formattare il contenuto
         let html = content;
         
+        // Escape HTML entities per sicurezza
         html = html.replace(/</g, '&lt;').replace(/>/g, '&gt;');
         
-        html = html.replace(/^#### (.*?)$/gm, '<h5>$1</h5>');
-        html = html.replace(/^### (.*?)$/gm, '<h4>$1</h4>');
-        html = html.replace(/^## (.*?)$/gm, '<h3>$1</h3>');
-        html = html.replace(/^# (.*?)$/gm, '<h2>$1</h2>');
+        // Headers (dal più grande al più piccolo)
+        html = html.replace(/^#### (.*?)$/gm, '<h5 style="color: #374151; margin: 15px 0 10px 0;">$1</h5>');
+        html = html.replace(/^### (.*?)$/gm, '<h4 style="color: #1F2937; margin: 20px 0 15px 0;">$1</h4>');
+        html = html.replace(/^## (.*?)$/gm, '<h3 style="color: #1ABC9C; margin: 25px 0 15px 0; font-weight: 600;">$1</h3>');
+        html = html.replace(/^# (.*?)$/gm, '<h2 style="color: #16A085; margin: 30px 0 20px 0;">$1</h2>');
         
+        // Bold e Italic
         html = html.replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>');
-        html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        html = html.replace(/\*\*(.*?)\*\*/g, '<strong style="color: #1F2937;">$1</strong>');
         html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
         
+        // Code blocks
+        html = html.replace(/```([\s\S]*?)```/g, '<pre style="background: #F3F4F6; padding: 15px; border-radius: 6px; overflow-x: auto; margin: 15px 0;"><code>$1</code></pre>');
+        
+        // Inline code
+        html = html.replace(/`(.*?)`/g, '<code style="background: #E5E7EB; padding: 2px 6px; border-radius: 3px; font-family: monospace;">$1</code>');
+        
+        // Tabelle Markdown
+        html = html.replace(/\n((?:\|.*\|.*\n)+)/g, function(match, table) {
+            const rows = table.trim().split('\n');
+            let tableHtml = '<table style="border-collapse: collapse; width: 100%; margin: 15px 0;">';
+            
+            rows.forEach((row, index) => {
+                const cells = row.split('|').filter(cell => cell.trim());
+                
+                // Skip separator row (contains only dashes)
+                if (cells.every(cell => /^[-:\s]+$/.test(cell))) return;
+                
+                tableHtml += '<tr>';
+                cells.forEach(cell => {
+                    const tag = index === 0 ? 'th' : 'td';
+                    const style = index === 0 
+                        ? 'style="background: #F3F4F6; font-weight: 600; padding: 10px; border: 1px solid #E5E7EB; text-align: left;"'
+                        : 'style="padding: 10px; border: 1px solid #E5E7EB;"';
+                    tableHtml += `<${tag} ${style}>${cell.trim()}</${tag}>`;
+                });
+                tableHtml += '</tr>';
+            });
+            
+            tableHtml += '</table>';
+            return '\n' + tableHtml;
+        });
+        
+        // Liste non ordinate (prima di newlines per preservare struttura)
+        html = html.replace(/^[\*\-\+] (.+)$/gm, function(match, item) {
+            return `<li style="margin: 5px 0;">${item}</li>`;
+        });
+        
+        // Raggruppa gli <li> in <ul>
+        html = html.replace(/(<li[^>]*>[\s\S]*?<\/li>\n?)(?!<li)/g, function(match) {
+            const items = match.match(/<li[^>]*>[\s\S]*?<\/li>/g) || [];
+            if (items.length > 0) {
+                return '<ul style="margin: 15px 0; padding-left: 25px;">' + items.join('') + '</ul>';
+            }
+            return match;
+        });
+        
+        // Horizontal rules
+        html = html.replace(/^---+$/gm, '<hr style="border: none; border-top: 2px solid #E5E7EB; margin: 20px 0;">');
+        
+        // Paragrafi e newlines
+        html = html.replace(/\n\n+/g, '</p><p style="margin: 10px 0; line-height: 1.6;">');
         html = html.replace(/\n/g, '<br>');
+        
+        // Wrap in paragrafo se non inizia con tag HTML
+        if (!html.match(/^<[^>]+>/)) {
+            html = '<p style="margin: 10px 0; line-height: 1.6;">' + html + '</p>';
+        }
+        
+        // Pulisci paragrafi vuoti
+        html = html.replace(/<p[^>]*>\s*<\/p>/g, '');
+        
+        // Evidenzia numeri e percentuali importanti
+        html = html.replace(/\b(\d+(?:\.\d+)?%)\b/g, '<span style="color: #1ABC9C; font-weight: 600;">$1</span>');
+        html = html.replace(/\b(\d{1,3}(?:\.\d{3})*(?:,\d+)?)\s*(€|abitanti|mq|km)/g, '<span style="color: #16A085; font-weight: 600;">$1 $2</span>');
         
         return html;
     }
 
-    // Funzioni globali
+    // Funzioni globali per i capitoli
     window.toggleChapter = function(id) {
         const content = document.getElementById(`chapter-content-${id}`);
         const toggle = document.querySelector(`[data-chapter-id="${id}"] .chapter-toggle`);
         
-        if (content && toggle) {
-            if (content.style.display === 'none') {
-                content.style.display = 'block';
-                toggle.style.transform = 'rotate(0deg)';
-            } else {
-                content.style.display = 'none';
-                toggle.style.transform = 'rotate(-90deg)';
-            }
+        if (content.style.display === 'none') {
+            content.style.display = 'block';
+            toggle.style.transform = 'rotate(0deg)';
+        } else {
+            content.style.display = 'none';
+            toggle.style.transform = 'rotate(-90deg)';
         }
     };
 
@@ -783,8 +656,11 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.appendChild(overlay);
         lucide.createIcons();
         
+        // Chiudi con click fuori
         overlay.addEventListener('click', (e) => {
-            if (e.target === overlay) overlay.remove();
+            if (e.target === overlay) {
+                overlay.remove();
+            }
         });
     };
 
@@ -795,12 +671,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const textContent = `${chapter.title}\n${new Date(chapter.timestamp).toLocaleString('it-IT')}\n\n${chapter.content}`;
         
         navigator.clipboard.writeText(textContent).then(() => {
-            StorebotUtils.showTemporaryMessage('Contenuto copiato!', 'success');
+            StorebotUtils.showTemporaryMessage('Contenuto copiato negli appunti!', 'success');
+        }).catch(err => {
+            console.error('Errore copia:', err);
+            StorebotUtils.showTemporaryMessage('Errore nella copia del contenuto', 'error');
         });
     };
 
     window.deleteChapter = function(id) {
-        if (confirm('Eliminare questo capitolo?')) {
+        if (confirm('Sei sicuro di voler eliminare questo capitolo?')) {
             chapters = chapters.filter(ch => ch.id != id);
             saveChapters();
             renderChapters();
@@ -808,6 +687,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    // Funzioni globali per le mappe
     window.viewMapFullscreen = function(id) {
         const map = savedMaps.find(m => m.id == id);
         if (!map) return;
@@ -820,6 +700,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     <i data-lucide="x"></i>
                 </button>
                 <img src="${map.imageUrl}" alt="${map.title}" class="map-fullscreen-image">
+                <div class="map-info">
+                    <h3>${map.title}</h3>
+                    <p>Indirizzo: ${map.address || 'Non specificato'}</p>
+                </div>
             </div>
         `;
         
@@ -833,7 +717,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const link = document.createElement('a');
         link.href = map.imageUrl;
-        link.download = `mappa_${new Date().toISOString().slice(0,10)}.png`;
+        link.download = `mappa_${map.address ? map.address.replace(/[^a-z0-9]/gi, '_') : 'formaps'}_${new Date().toISOString().slice(0,10)}.png`;
         link.click();
     };
 
@@ -845,6 +729,76 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    function copyAddress() {
+        if (!currentAddress) return;
+
+        navigator.clipboard.writeText(currentAddress).then(() => {
+            // Animazione feedback
+            const originalHTML = copyAddressBtn.innerHTML;
+            copyAddressBtn.innerHTML = '<i data-lucide="check"></i> Copiato!';
+            copyAddressBtn.classList.add('copied');
+            
+            setTimeout(() => {
+                copyAddressBtn.innerHTML = originalHTML;
+                copyAddressBtn.classList.remove('copied');
+                lucide.createIcons();
+            }, 2000);
+            
+            StorebotUtils.showTemporaryMessage('Indirizzo copiato! Incollalo nella ricerca di Formaps', 'success');
+        }).catch(err => {
+            console.error('Errore copia:', err);
+            // Fallback per browser che non supportano clipboard API
+            const textArea = document.createElement('textarea');
+            textArea.value = currentAddress;
+            textArea.style.position = 'fixed';
+            textArea.style.opacity = '0';
+            document.body.appendChild(textArea);
+            textArea.select();
+            
+            try {
+                document.execCommand('copy');
+                StorebotUtils.showTemporaryMessage('Indirizzo copiato!', 'success');
+            } catch (e) {
+                StorebotUtils.showTemporaryMessage('Errore nella copia dell\'indirizzo', 'error');
+            }
+            
+            document.body.removeChild(textArea);
+        });
+    }
+
+    function toggleFullscreen() {
+        if (!document.fullscreenElement) {
+            formapsContainer.requestFullscreen().then(() => {
+                fullscreenBtn.innerHTML = '<i data-lucide="minimize-2"></i> Esci Schermo Intero';
+                lucide.createIcons();
+            }).catch(err => {
+                console.error('Errore fullscreen:', err);
+                StorebotUtils.showTemporaryMessage('Impossibile attivare schermo intero', 'error');
+            });
+        } else {
+            document.exitFullscreen().then(() => {
+                fullscreenBtn.innerHTML = '<i data-lucide="maximize-2"></i> Schermo Intero';
+                lucide.createIcons();
+            });
+        }
+    }
+
+    function saveNotes() {
+        const notes = notesTextarea.value.trim();
+        localStorage.setItem('storebot_formapsNotes', notes);
+        
+        // Salva anche come parte dell'analisi completa
+        const formapsAnalysis = {
+            timestamp: new Date().toISOString(),
+            notes: notes,
+            currentAddress: currentAddress || null
+        };
+        localStorage.setItem('storebot_formapsAnalysis', JSON.stringify(formapsAnalysis));
+        
+        StorebotUtils.showTemporaryMessage('Note salvate con successo!', 'success');
+    }
+
+    // Utility function per debounce
     function debounce(func, wait) {
         let timeout;
         return function executedFunction(...args) {
@@ -857,14 +811,13 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    // Listener per aggiornamenti indirizzo
+    // Listener per aggiornamenti dell'indirizzo da altre pagine
     window.addEventListener('storage', (e) => {
         if (e.key === 'storebot_currentAddress') {
-            currentAddress = localStorage.getItem('storebot_currentAddress') || '';
-            updateAddressDisplay();
+            loadCurrentAddress();
         }
     });
 
-    // INIZIALIZZA TUTTO
+    // Inizializza
     initializeFormaps();
 });
