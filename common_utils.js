@@ -14,15 +14,14 @@ const StorebotUtils = {
         let container = document.getElementById('messageContainer');
         if (!container) {
             container = document.createElement('div');
-            container.id = 'dynamicMessageContainer'; // Assicurati che sia unico se ce ne possono essere multipli
+            container.id = 'dynamicMessageContainer';
             document.body.appendChild(container);
         }
-        // Rimuovi classi di tipo precedenti
-        container.className = 'message-banner'; // Reset base
-        container.classList.add(type); // Aggiungi nuova classe di tipo
+        container.className = 'message-banner';
+        container.classList.add(type);
 
         container.innerHTML = `<i data-lucide="${type === 'success' ? 'check-circle' : type === 'error' ? 'alert-triangle' : 'info'}"></i> ${message}`;
-        lucide.createIcons(); // Renderizza l'icona
+        lucide.createIcons();
         container.style.display = 'block';
 
         setTimeout(() => {
@@ -31,9 +30,6 @@ const StorebotUtils = {
         }, duration);
     },
 
-    // Funzione per aggiornare lo stato visivo delle API Key
-    // Accetta l'elemento DOM dove mostrare lo stato generale
-    // e opzionalmente elementi specifici per ogni chiave se vuoi semafori individuali
     updateApiKeyStatusIndicator: async function(generalStatusDivElement, gmapsStatusEl, geminiStatusEl, botIdStatusEl) {
         if (!generalStatusDivElement) return;
 
@@ -46,7 +42,6 @@ const StorebotUtils = {
             botId: { key: this.getApiKey('botId'), valid: false, element: botIdStatusEl, name: "Storebot Bot ID" }
         };
 
-        // Esegui i test in parallelo
         await Promise.all([
             this.testGmapsApiKey(results.gmaps.key).then(isValid => results.gmaps.valid = isValid),
             this.testGeminiApiKey(results.gemini.key).then(isValid => results.gemini.valid = isValid),
@@ -59,7 +54,7 @@ const StorebotUtils = {
 
         for (const keyType in results) {
             const res = results[keyType];
-            if (res.element) { // Aggiorna semaforo individuale se l'elemento è fornito
+            if (res.element) {
                 res.element.innerHTML = `<span class="api-dot ${res.valid ? 'valid' : 'invalid'}"></span> ${res.name}: ${res.valid ? 'Valida' : (res.key ? 'Non Valida/Errore' : 'Mancante')}`;
             }
             if (!res.valid) {
@@ -76,10 +71,9 @@ const StorebotUtils = {
             summaryMessage += `Problemi rilevati: ${missingOrInvalid.join(', ')}.`;
             generalStatusDivElement.className = 'api-status-indicator error';
         }
-        generalStatusDivElement.innerHTML = summaryMessage; // Rimuovi lo spinner
+        generalStatusDivElement.innerHTML = summaryMessage;
     },
 
-    // Funzione di notifica se le chiavi non sono configurate/valide (chiamata dalle pagine)
     checkApiKeysAndNotify: async function(showSuccess = false) {
         const gmapsKey = this.getApiKey('gmaps');
         const geminiKey = this.getApiKey('gemini');
@@ -115,43 +109,36 @@ const StorebotUtils = {
         return true;
     },
 
-    // --- Funzioni di Test API Key ---
     testGmapsApiKey: async function(apiKey) {
         if (!apiKey || apiKey.length < 10) return false;
-        // Per testare la chiave Maps, proviamo a geocodificare un indirizzo semplice.
-        // È necessario che l'API Google Maps sia caricata.
-        // Questa funzione presuppone che `ensureGoogleMapsApiLoaded` (specifica per pagina)
-        // sia stata chiamata e abbia inizializzato un geocoder globale temporaneo o locale.
-        // Per un test generico qui, potremmo dover caricare l'API solo per il test.
         try {
-            // Tentativo di caricare l'API solo per il test se non già fatto globalmente
             if (!(window.google && window.google.maps && window.google.maps.Geocoder)) {
                 await new Promise((resolve, reject) => {
                     window.googleMapsApiTestCallback = () => {
-                        delete window.googleMapsApiTestCallback; resolve();
+                        delete window.googleMapsApiTestCallback; 
+                        resolve();
                     };
                     const script = document.createElement('script');
                     script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geocoding&callback=googleMapsApiTestCallback`;
                     script.onerror = reject;
                     document.head.appendChild(script);
-                    // Rimuovi lo script dopo un po' per evitare conflitti se la pagina lo ricarica
                     setTimeout(() => script.remove(), 5000);
                 });
             }
-             if (!(window.google && window.google.maps && window.google.maps.Geocoder)) {
+            if (!(window.google && window.google.maps && window.google.maps.Geocoder)) {
                 console.warn("Google Maps SDK non completamente pronto per il test.");
-                return false; // Non possiamo testare senza SDK
+                return false;
             }
 
             const geocoderTest = new google.maps.Geocoder();
             await new Promise((resolve, reject) => {
                 geocoderTest.geocode({ address: "1600 Amphitheatre Parkway, Mountain View, CA" }, (results, status) => {
                     if (status === 'OK') resolve(true);
-                    else if (status === 'REQUEST_DENIED') resolve(false); // Chiave probabilmente non valida o non abilitata
-                    else resolve(true); // Altri errori potrebbero non essere legati alla chiave in sé (es. OVER_QUERY_LIMIT)
+                    else if (status === 'REQUEST_DENIED') resolve(false);
+                    else resolve(true);
                 });
             });
-            return true; // Se la geocodifica non lancia un errore specifico di chiave
+            return true;
         } catch (error) {
             console.warn("Errore test Google Maps API Key:", error);
             return false;
@@ -160,7 +147,7 @@ const StorebotUtils = {
 
     testGeminiApiKey: async function(apiKey) {
         if (!apiKey || apiKey.length < 10) return false;
-        const testPrompt = "Ciao"; // Un prompt molto semplice
+        const testPrompt = "Ciao";
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
         try {
             const response = await fetch(apiUrl, {
@@ -168,7 +155,7 @@ const StorebotUtils = {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ contents: [{ parts: [{ text: testPrompt }] }] })
             });
-            return response.ok; // Se la risposta è OK (2xx), la chiave è probabilmente valida
+            return response.ok;
         } catch (error) {
             console.warn("Errore test Gemini API Key:", error);
             return false;
@@ -176,13 +163,7 @@ const StorebotUtils = {
     },
 
     testStorebotBotId: async function(botId) {
-        // Per il Bot ID, assumiamo che se è presente e non vuoto, sia "valido" ai fini della configurazione.
-        // Un test reale richiederebbe una chiamata all'endpoint /api/bots/{bot_id} o simile
-        // che al momento non sembra esistere o non è documentato per un semplice check.
-        // Per ora, un semplice controllo di presenza.
         if (!botId || botId.length < 10) return false;
-
-        // Facciamo una chiamata di test con un messaggio semplice
         const apiUrl = 'https://scanchat-dev.bflows.ai/api/chat/message';
         try {
             const response = await fetch(apiUrl, {
@@ -190,16 +171,13 @@ const StorebotUtils = {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ message: "Test connettività", bot_id: botId, streaming: false })
             });
-            // Se la risposta non è 401 (Unauthorized) o 404 (Not Found for bot), la consideriamo ok per il test.
-            // Idealmente, l'API dovrebbe dare un errore specifico se il bot_id è malformato o non esiste.
             return response.ok || (response.status !== 401 && response.status !== 404 && response.status !== 403);
         } catch (error) {
             console.warn("Errore test Storebot Bot ID:", error);
-            return false; // Errore di rete, ecc.
+            return false;
         }
     },
 
-    // --- Funzioni di Utility Varie (normalizeString, calculateDistanceHaversine come prima) ---
     normalizeString: function(str) {
         if (!str) return '';
         return str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[.,\/#!$%\^&\*;:{}=\-_`~()'"]/g, "").replace(/\s\s+/g, ' ').trim();
@@ -216,13 +194,32 @@ const StorebotUtils = {
         return R * c;
     },
 
-    // --- Funzioni per chiamate API effettive (come definite prima) ---
-    showGlobalLoading: function(text = "Caricamento...") { /* ... implementazione ... */ },
-    hideGlobalLoading: function() { /* ... implementazione ... */ },
+    showGlobalLoading: function(text = "Caricamento...") { 
+        // Implementazione del loader globale
+        let loader = document.getElementById('globalLoader');
+        if (!loader) {
+            loader = document.createElement('div');
+            loader.id = 'globalLoader';
+            loader.className = 'global-loader';
+            document.body.appendChild(loader);
+        }
+        loader.innerHTML = `<div class="spinner"></div><p>${text}</p>`;
+        loader.style.display = 'flex';
+    },
+    
+    hideGlobalLoading: function() { 
+        const loader = document.getElementById('globalLoader');
+        if (loader) {
+            loader.style.display = 'none';
+        }
+    },
+    
     callStorebotChatAPI: async function(prompt, botIdOverride = null) {
         const botId = botIdOverride || this.getApiKey('botId');
-        // ... (implementazione come prima, ma usa this.showTemporaryMessage per errori)
-        if (!botId) { this.showTemporaryMessage('ID Bot Storebot Chat non configurato.', 'error'); throw new Error("Bot ID mancante"); }
+        if (!botId) { 
+            this.showTemporaryMessage('ID Bot Storebot Chat non configurato.', 'error'); 
+            throw new Error("Bot ID mancante"); 
+        }
         const apiUrl = 'https://scanchat-dev.bflows.ai/api/chat/message';
         this.showGlobalLoading("Elaborazione AI Storebot Chat...");
         try {
@@ -244,10 +241,13 @@ const StorebotUtils = {
             throw error;
         }
     },
+    
     callGeminiAPI: async function(prompt, imageParts = []) {
         const apiKey = this.getApiKey('gemini');
-        // ... (implementazione come prima, ma usa this.showTemporaryMessage per errori)
-        if (!apiKey) { this.showTemporaryMessage('Google Gemini API Key non configurata.', 'error'); throw new Error("Gemini API Key mancante"); }
+        if (!apiKey) { 
+            this.showTemporaryMessage('Google Gemini API Key non configurata.', 'error'); 
+            throw new Error("Gemini API Key mancante"); 
+        }
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
         this.showGlobalLoading("Elaborazione con Gemini AI...");
         const contents = [{ parts: [{ text: prompt }] }];
@@ -265,18 +265,94 @@ const StorebotUtils = {
                 throw new Error(errMsg);
             }
             const result = await response.json();
-            if (result.candidates && result.candidates[0]?.content?.parts?.[0]?.text) return result.candidates[0].content.parts[0].text;
-            if (result.promptFeedback?.blockReason) throw new Error(`Richiesta bloccata da Gemini: ${result.promptFeedback.blockReason}`);
+            if (result.candidates && result.candidates[0]?.content?.parts?.[0]?.text) {
+                return result.candidates[0].content.parts[0].text;
+            }
+            if (result.promptFeedback?.blockReason) {
+                throw new Error(`Richiesta bloccata da Gemini: ${result.promptFeedback.blockReason}`);
+            }
             throw new Error("Formato risposta da Gemini non valido.");
         } catch (error) {
             this.hideGlobalLoading();
             this.showTemporaryMessage(`Errore API Gemini: ${error.message}`, 'error');
             throw error;
         }
-    }
-};
+    },
 
-// Aggiungi un'icona per lo spinner se non presente in Lucide (o usa Lucide)
-if (document.getElementById('globalLoader')) { // Esempio di come usare l'icona spin di lucide
-    document.getElementById('globalLoader').querySelector('.spinner').innerHTML = '<i data-lucide="loader-2" class="spin-icon-actual"></i>';
+    // NUOVA FUNZIONE - Assicurati che sia DENTRO l'oggetto StorebotUtils
+    callOpenRouterAPI: async function(prompt, modelId = 'google/gemini-2.0-flash') {
+        const apiKey = this.getApiKey('openrouter');
+        if (!apiKey) { 
+            console.log('OpenRouter non configurato, uso Gemini come fallback');
+            return this.callGeminiAPI(prompt);
+        }
+        
+        this.showGlobalLoading("Elaborazione con OpenRouter AI...");
+        
+        try {
+            const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json',
+                    'HTTP-Referer': window.location.href,
+                    'X-Title': 'Storebot Suite - Report'
+                },
+                body: JSON.stringify({
+                    model: modelId,
+                    messages: [{
+                        role: 'user',
+                        content: prompt
+                    }],
+                    temperature: 0.7,
+                    max_tokens: 4000
+                })
+            });
+            
+            this.hideGlobalLoading();
+            
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(`OpenRouter ${response.status}: ${errorData.error?.message || response.statusText}`);
+            }
+            
+            const result = await response.json();
+            
+            if (result.choices && result.choices[0]?.message?.content) {
+                return result.choices[0].message.content;
+            }
+            
+            throw new Error("Formato risposta OpenRouter non valido");
+            
+        } catch (error) {
+            this.hideGlobalLoading();
+            console.warn('OpenRouter fallito, provo con Gemini:', error);
+            return this.callGeminiAPI(prompt);
+        }
+    },
+
+    // Aggiungi anche la funzione di test per OpenRouter
+    testOpenRouterApiKey: async function(apiKey) {
+        if (!apiKey || apiKey.length < 10) return false;
+        try {
+            const response = await fetch('https://openrouter.ai/api/v1/models', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`
+                }
+            });
+            return response.ok;
+        } catch (error) {
+            console.warn("Errore test OpenRouter API Key:", error);
+            return false;
+        }
+    }
+}; // <-- IMPORTANTE: Chiudi l'oggetto StorebotUtils qui
+
+// Questo codice va FUORI dall'oggetto StorebotUtils
+if (document.getElementById('globalLoader')) {
+    const spinner = document.getElementById('globalLoader').querySelector('.spinner');
+    if (spinner) {
+        spinner.innerHTML = '<i data-lucide="loader-2" class="spin-icon-actual"></i>';
+    }
 }
