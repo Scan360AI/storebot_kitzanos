@@ -76,43 +76,22 @@
                 </div>
             </div>
 
-          function initializeFormaps() {
-    lucide.createIcons();
-    StorebotUtils.checkApiKeysAndNotify();
-
-    // Carica e mostra l'indirizzo corrente
-    loadCurrentAddress();
-
-    // Carica note salvate
-    const savedNotes = localStorage.getItem('storebot_formapsNotes');
-    if (savedNotes) {
-        notesTextarea.value = savedNotes;
-    }
-
-    // Renderizza capitoli esistenti
-    renderChapters();
-
-    // Renderizza mappe esistenti
-    renderMaps();
-
-    // Setup event listeners
-    setupEventListeners();
-
-    // Setup global paste listener
-    setupGlobalPasteListener();
-
-    // NUOVO: Crea il modal per Formaps
-    createFormapsModal();
-}
-
-// Nuova funzione per creare il modal
-function createFormapsModal() {
-    // Rimuovi l'iframe container esistente
-    const oldContainer = document.getElementById('formapsContainer');
-    if (oldContainer) {
-        oldContainer.style.display = 'none';
-    }
-
+<!-- Container per l'iframe -->
+<div class="iframe-container" id="formapsContainer">
+    <div class="iframe-loading" id="iframeLoading">
+        <div class="loading-spinner"></div>
+        <p>Caricamento Formaps in corso...</p>
+    </div>
+    <iframe 
+        id="formapsIframe"
+        src="https://www.formaps.it/" 
+        title="Formaps - Analisi Territoriale"
+        allowfullscreen
+        allow="geolocation; camera"
+        style="display: none;"
+    ></iframe>
+</div>
+            
     // Crea il modal HTML
     const modalHTML = `
         <div id="formapsModal" class="formaps-modal" style="display: none;">
