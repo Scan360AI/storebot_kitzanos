@@ -52,7 +52,7 @@ Migrazione completa a **Gemini 2.5** con supporto per tutti i nuovi modelli disp
 
 ---
 
-### 3. **setting.js** - Logica Configurazione
+### 3. **settings.js** - Logica Configurazione
 #### Modifiche:
 - **Linea 10**: Aggiunto `geminiModelSelect` DOM element
 - **Linea 27-52**: Aggiornato `modelInfo` con nuovi modelli e prezzi 2025
