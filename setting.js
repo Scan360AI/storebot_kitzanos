@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const botIdInput = document.getElementById('botIdApiKey');
     const openrouterInput = document.getElementById('openrouterApiKey');
     const modelSelect = document.getElementById('openrouterModel');
+    const geminiModelSelect = document.getElementById('geminiModelSelect');
     
     const saveGmapsBtn = document.getElementById('saveGmapsKeyBtn');
     const saveGeminiBtn = document.getElementById('saveGeminiKeyBtn');
@@ -23,27 +24,31 @@ document.addEventListener('DOMContentLoaded', () => {
     const modelDescription = document.getElementById('modelDescription');
     const modelPrice = document.getElementById('modelPrice');
     
-    // Informazioni sui modelli
+    // Informazioni sui modelli (Aggiornato 2025)
     const modelInfo = {
-        'google/gemini-2.0-flash': {
-            description: 'Modello veloce ed economico',
+        'google/gemini-2.0-flash-exp': {
+            description: 'Gemini 2.0 Flash Experimental - Veloce e performante',
             price: '~$0.00015/1K token'
         },
-        'google/gemini-pro': {
-            description: 'Bilanciato tra qualità e costo',
-            price: '~$0.00125/1K token'
+        'google/gemini-2.5-flash': {
+            description: 'Gemini 2.5 Flash - Ultimo modello, bilanciato (FREE tier disponibile)',
+            price: 'FREE fino a 250 req/day'
+        },
+        'google/gemini-2.5-pro': {
+            description: 'Gemini 2.5 Pro - Massima qualità (FREE tier disponibile)',
+            price: 'FREE fino a 100 req/day'
         },
         'anthropic/claude-3.5-sonnet': {
-            description: 'Alta qualità, ottimo per report dettagliati',
+            description: 'Claude 3.5 Sonnet - Alta qualità, ottimo per report dettagliati',
             price: '~$0.003/1K token'
         },
         'openai/gpt-4o': {
-            description: 'Modello premium OpenAI',
+            description: 'GPT-4o - Modello premium OpenAI',
             price: '~$0.0025/1K token'
         },
-        'meta-llama/llama-3.2-3b-instruct': {
-            description: 'Molto economico, qualità base',
-            price: '~$0.00006/1K token'
+        'meta-llama/llama-3.2-90b-instruct': {
+            description: 'Llama 3.2 90B - Economico ma potente',
+            price: '~$0.0002/1K token'
         }
     };
     
@@ -55,13 +60,14 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Event listeners
         saveGmapsBtn.addEventListener('click', () => saveApiKey('gmaps', gmapsInput));
-        saveGeminiBtn.addEventListener('click', () => saveApiKey('gemini', geminiInput));
+        saveGeminiBtn.addEventListener('click', () => saveGeminiKey());
         saveBotIdBtn.addEventListener('click', () => saveApiKey('botId', botIdInput));
         saveOpenrouterBtn.addEventListener('click', () => saveOpenrouterKey());
         testAllBtn.addEventListener('click', testAllApis);
-        
+
         // Model selection change
         modelSelect.addEventListener('change', updateModelInfo);
+        geminiModelSelect.addEventListener('change', saveGeminiModel);
         
         // Toggle password visibility
         addPasswordToggle(gmapsInput);
@@ -76,13 +82,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const botId = StorebotUtils.getApiKey('botId');
         const openrouterKey = StorebotUtils.getApiKey('openrouter');
         const savedModel = StorebotUtils.getApiKey('openrouterModel');
-        
+        const savedGeminiModel = StorebotUtils.getApiKey('geminiModel');
+
         if (gmapsKey) gmapsInput.value = gmapsKey;
         if (geminiKey) geminiInput.value = geminiKey;
         if (botId) botIdInput.value = botId;
         if (openrouterKey) openrouterInput.value = openrouterKey;
         if (savedModel) modelSelect.value = savedModel;
-        
+        if (savedGeminiModel) geminiModelSelect.value = savedGeminiModel;
+
         updateModelInfo();
     }
     
@@ -103,21 +111,48 @@ document.addEventListener('DOMContentLoaded', () => {
         updateApiStatus();
     }
     
+    // Salva Gemini key e modello
+    async function saveGeminiKey() {
+        const apiKey = geminiInput.value.trim();
+        const selectedModel = geminiModelSelect.value;
+
+        if (!apiKey) {
+            StorebotUtils.showTemporaryMessage('Inserisci una chiave Gemini valida', 'error');
+            return;
+        }
+
+        StorebotUtils.saveApiKey('gemini', apiKey);
+        StorebotUtils.saveApiKey('geminiModel', selectedModel);
+
+        StorebotUtils.showTemporaryMessage('Gemini API Key e modello salvati!', 'success');
+
+        // Test immediato
+        await testSingleApi('gemini', apiKey);
+        updateApiStatus();
+    }
+
+    // Salva solo modello Gemini (quando si cambia dropdown)
+    function saveGeminiModel() {
+        const selectedModel = geminiModelSelect.value;
+        StorebotUtils.saveApiKey('geminiModel', selectedModel);
+        StorebotUtils.showTemporaryMessage(`Modello Gemini cambiato a: ${selectedModel}`, 'success', 2000);
+    }
+
     // Salva OpenRouter key e modello
     async function saveOpenrouterKey() {
         const apiKey = openrouterInput.value.trim();
         const selectedModel = modelSelect.value;
-        
+
         if (!apiKey) {
             StorebotUtils.showTemporaryMessage('Inserisci una chiave OpenRouter valida', 'error');
             return;
         }
-        
+
         StorebotUtils.saveApiKey('openrouter', apiKey);
         StorebotUtils.saveApiKey('openrouterModel', selectedModel);
-        
+
         StorebotUtils.showTemporaryMessage('OpenRouter API Key e modello salvati!', 'success');
-        
+
         // Test immediato
         await testSingleApi('openrouter', apiKey);
         updateApiStatus();

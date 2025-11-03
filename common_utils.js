@@ -148,7 +148,8 @@ const StorebotUtils = {
     testGeminiApiKey: async function(apiKey) {
         if (!apiKey || apiKey.length < 10) return false;
         const testPrompt = "Ciao";
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+        // Aggiornato a Gemini 2.5 Flash (2025)
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
         try {
             const response = await fetch(apiUrl, {
                 method: 'POST',
@@ -242,16 +243,32 @@ const StorebotUtils = {
         }
     },
     
-    callGeminiAPI: async function(prompt, imageParts = []) {
+    callGeminiAPI: async function(prompt, imageParts = [], modelPreference = null) {
         const apiKey = this.getApiKey('gemini');
-        if (!apiKey) { 
-            this.showTemporaryMessage('Google Gemini API Key non configurata.', 'error'); 
-            throw new Error("Gemini API Key mancante"); 
+        if (!apiKey) {
+            this.showTemporaryMessage('Google Gemini API Key non configurata.', 'error');
+            throw new Error("Gemini API Key mancante");
         }
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
-        this.showGlobalLoading("Elaborazione con Gemini AI...");
+
+        // Modelli Gemini 2.5 disponibili (2025)
+        const models = {
+            'flash': 'gemini-2.5-flash',      // Bilanciato (default) - 10 req/min, 250 req/day
+            'flash-lite': 'gemini-2.5-flash-lite',  // Veloce - 15 req/min, 1000 req/day
+            'pro': 'gemini-2.5-pro'           // Potente - 5 req/min, 100 req/day
+        };
+
+        // Se non specificato, usa il modello salvato in localStorage o flash come default
+        if (!modelPreference) {
+            modelPreference = this.getApiKey('geminiModel') || 'flash';
+        }
+
+        const modelName = models[modelPreference] || models.flash;
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+
+        this.showGlobalLoading(`Elaborazione con Gemini ${modelName}...`);
         const contents = [{ parts: [{ text: prompt }] }];
         if (imageParts.length > 0) imageParts.forEach(imgPart => contents[0].parts.push(imgPart));
+
         try {
             const response = await fetch(apiUrl, {
                 method: 'POST',
@@ -259,11 +276,20 @@ const StorebotUtils = {
                 body: JSON.stringify({ contents, generationConfig: { temperature: 0.4, maxOutputTokens: 2048 } })
             });
             this.hideGlobalLoading();
+
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
                 let errMsg = `Errore API Gemini ${response.status}: ${errorData.error?.message || errorData.detail || response.statusText}`;
+
+                // Fallback automatico a flash-lite se flash fallisce per rate limit
+                if (response.status === 429 && modelPreference === 'flash') {
+                    console.warn('Rate limit su flash, provo con flash-lite...');
+                    return this.callGeminiAPI(prompt, imageParts, 'flash-lite');
+                }
+
                 throw new Error(errMsg);
             }
+
             const result = await response.json();
             if (result.candidates && result.candidates[0]?.content?.parts?.[0]?.text) {
                 return result.candidates[0].content.parts[0].text;
@@ -280,15 +306,15 @@ const StorebotUtils = {
     },
 
     // NUOVA FUNZIONE - Assicurati che sia DENTRO l'oggetto StorebotUtils
-    callOpenRouterAPI: async function(prompt, modelId = 'google/gemini-2.0-flash') {
+    callOpenRouterAPI: async function(prompt, modelId = 'google/gemini-2.0-flash-exp') {
         const apiKey = this.getApiKey('openrouter');
-        if (!apiKey) { 
+        if (!apiKey) {
             console.log('OpenRouter non configurato, uso Gemini come fallback');
             return this.callGeminiAPI(prompt);
         }
-        
+
         this.showGlobalLoading("Elaborazione con OpenRouter AI...");
-        
+
         try {
             const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
                 method: 'POST',
@@ -308,22 +334,22 @@ const StorebotUtils = {
                     max_tokens: 4000
                 })
             });
-            
+
             this.hideGlobalLoading();
-            
+
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
                 throw new Error(`OpenRouter ${response.status}: ${errorData.error?.message || response.statusText}`);
             }
-            
+
             const result = await response.json();
-            
+
             if (result.choices && result.choices[0]?.message?.content) {
                 return result.choices[0].message.content;
             }
-            
+
             throw new Error("Formato risposta OpenRouter non valido");
-            
+
         } catch (error) {
             this.hideGlobalLoading();
             console.warn('OpenRouter fallito, provo con Gemini:', error);

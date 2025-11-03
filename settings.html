@@ -213,9 +213,26 @@
                         </button>
                     </div>
                     <div id="geminiStatus"></div>
+
+                    <!-- Selezione Modello Gemini Locale -->
+                    <div class="model-select-group">
+                        <label for="geminiModelSelect">Modello Gemini (uso locale):</label>
+                        <select id="geminiModelSelect" class="model-select">
+                            <option value="flash">Gemini 2.5 Flash (Consigliato - Bilanciato)</option>
+                            <option value="flash-lite">Gemini 2.5 Flash Lite (Veloce - 1000 req/day)</option>
+                            <option value="pro">Gemini 2.5 Pro (Massima qualità - 100 req/day)</option>
+                        </select>
+                        <div class="model-info">
+                            <span style="font-size: 11px; color: #6b7280;">
+                                Usato per: estrazione PDF, analisi immagini, descrizioni marketing
+                            </span>
+                        </div>
+                    </div>
+
                     <p class="help-text">
-                        Per generazione contenuti AI. 
-                        <a href="https://makersuite.google.com/app/apikey" target="_blank">Ottieni API Key</a>
+                        Per generazione contenuti AI.
+                        <a href="https://aistudio.google.com/apikey" target="_blank">Ottieni API Key</a>
+                        (100% FREE tier disponibile!)
                     </p>
                 </div>
 
@@ -256,15 +273,16 @@
                     <div class="model-select-group">
                         <label for="openrouterModel">Modello AI per Report:</label>
                         <select id="openrouterModel" class="model-select">
-                            <option value="google/gemini-2.0-flash">Gemini 2.0 Flash (Veloce)</option>
-                            <option value="google/gemini-pro">Gemini Pro (Bilanciato)</option>
+                            <option value="google/gemini-2.5-flash">Gemini 2.5 Flash (Consigliato - FREE)</option>
+                            <option value="google/gemini-2.5-pro">Gemini 2.5 Pro (Massima qualità - FREE)</option>
+                            <option value="google/gemini-2.0-flash-exp">Gemini 2.0 Flash Exp (Veloce)</option>
                             <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet (Premium)</option>
                             <option value="openai/gpt-4o">GPT-4o (Premium)</option>
-                            <option value="meta-llama/llama-3.2-3b-instruct">Llama 3.2 (Economico)</option>
+                            <option value="meta-llama/llama-3.2-90b-instruct">Llama 3.2 90B (Economico)</option>
                         </select>
                         <div class="model-info">
-                            <span id="modelDescription">Modello veloce ed economico</span>
-                            <span class="price-tag" id="modelPrice">~$0.00015/1K token</span>
+                            <span id="modelDescription">Gemini 2.5 Flash - Ultimo modello, bilanciato (FREE tier disponibile)</span>
+                            <span class="price-tag" id="modelPrice">FREE fino a 250 req/day</span>
                         </div>
                     </div>
                     
