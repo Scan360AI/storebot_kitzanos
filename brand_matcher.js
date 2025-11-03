@@ -32,6 +32,52 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // NUOVA FUNZIONE: Estrae brand già presenti dal context analyzer
+    function extractExistingBrands() {
+        try {
+            const contextPoisRaw = localStorage.getItem('storebot_contextPois');
+            if (!contextPoisRaw) return [];
+
+            const contextPois = JSON.parse(contextPoisRaw);
+            const brands = [];
+
+            contextPois.forEach(poi => {
+                // Filtra solo i POI classificati come brand
+                if (poi.classification && poi.classification.type === 'brand') {
+                    brands.push({
+                        name: poi.classification.brandDisplayName || poi.originalName,
+                        category: poi.classification.brandConfigCategory || 'N/A',
+                        subcategory: poi.classification.brandConfigSubCategory || '',
+                        distance: poi.distance,
+                        address: poi.vicinity || ''
+                    });
+                }
+            });
+
+            // Rimuovi duplicati basandosi sul nome
+            const uniqueBrands = [];
+            const seenNames = new Set();
+
+            brands.forEach(brand => {
+                const normalizedName = brand.name.toLowerCase().trim();
+                if (!seenNames.has(normalizedName)) {
+                    seenNames.add(normalizedName);
+                    uniqueBrands.push(brand);
+                }
+            });
+
+            // Ordina per distanza
+            uniqueBrands.sort((a, b) => a.distance - b.distance);
+
+            console.log(`Brand estratti dal quartiere: ${uniqueBrands.length}`, uniqueBrands);
+
+            return uniqueBrands;
+        } catch (error) {
+            console.warn('Errore estrazione brand esistenti:', error);
+            return [];
+        }
+    }
+
     // Aggiungi gli stili CSS per le card del matching
     function addMatchingStyles() {
         if (!document.querySelector('style[data-matching-styles]')) {
@@ -307,34 +353,52 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        // NOVITÀ: Estrai brand già presenti nel quartiere
+        const existingBrands = extractExistingBrands();
+        const brandsToExclude = existingBrands.length > 0
+            ? `\n\n⚠️ IMPORTANTE - BRAND GIÀ PRESENTI NEL QUARTIERE (DA ESCLUDERE):
+${existingBrands.map(b => `- ${b.name} (${b.category})`).join('\n')}
+
+NON suggerire questi brand perché sono già presenti nell'area. Concentrati su brand DIVERSI che possano completare l'offerta commerciale del quartiere.`
+            : '';
+
         const prompt = `ANALISI COMPATIBILITÀ BRAND-IMMOBILE PER STOREBOT SUITE
 
 DESCRIZIONE CONTESTO QUARTIERE:
 ${neighborhoodText}
 
 DATI IMMOBILE (JSON):
-${propertyJson}
+${propertyJson}${brandsToExclude}
+
+ISTRUZIONI CRITICHE:
+1. Suggerisci SOLO brand commerciali SPECIFICI E PRECISI (es: "Zara", "McDonald's", "Eurospin")
+2. NON usare categorie generiche (es: "Supermercato generico", "Negozio di abbigliamento")
+3. NON suggerire brand già presenti nel quartiere (vedi lista sopra)
+4. Ogni brand deve avere RAGIONI SPECIFICHE E DETTAGLIATE del matching
+5. Fornisci almeno 6-10 brand diversificati
 
 TASK:
-Analizza la compatibilità tra le caratteristiche del quartiere e dell'immobile con i requisiti tipici dei brand commerciali.
+Analizza la compatibilità tra le caratteristiche del quartiere e dell'immobile con i requisiti tipici di brand commerciali SPECIFICI.
 
-Per ogni brand che suggerisci, fornisci:
-1. **Nome del Brand** - Compatibilità: X/10 punti
-   * Descrizione: breve descrizione del brand o della categoria
-   * Punti di forza: perché questo brand è adatto a questa location
-   * Requisiti soddisfatti: quali caratteristiche dell'immobile/quartiere sono favorevoli
-   * Considerazioni: eventuali aspetti da valutare o migliorare
+Per ogni brand che suggerisci, fornisci ESATTAMENTE questo formato:
 
-Identifica almeno 5-8 brand, ordinandoli dal più compatibile al meno compatibile.
+**[NOME BRAND PRECISO]** - Compatibilità: [NUMERO]/10 punti
+* Descrizione: [Breve descrizione del brand e del suo settore]
+* Ragioni del matching: [DETTAGLIATO - Spiega in modo specifico perché QUESTO brand è ideale per QUESTA location, citando caratteristiche concrete dell'immobile e del quartiere]
+* Punti di forza location: [Quali caratteristiche specifiche dell'immobile/quartiere favoriscono questo brand]
+* Target e traffico: [Come il brand si integra con il target demografico e i flussi del quartiere]
+* Considerazioni operative: [Requisiti specifici del brand e come la location li soddisfa o meno]
 
-Usa esattamente questo formato per ogni brand:
-**[NOME BRAND]** - Compatibilità: [NUMERO]/10 punti
-* Descrizione: [testo]
-* Punti di forza: [testo]
-* Requisiti soddisfatti: [testo]
-* Considerazioni: [testo]
+ESEMPIO DI FORMATO CORRETTO:
+**Zara** - Compatibilità: 8.5/10 punti
+* Descrizione: Brand fast fashion del gruppo Inditex con focus su abbigliamento trendy a prezzi accessibili
+* Ragioni del matching: Il quartiere mostra alta densità di giovani professionisti (25-40 anni) con potere d'acquisto medio-alto, target principale di Zara. La presenza di uffici nelle vicinanze garantisce traffico durante la pausa pranzo. La superficie di 250mq è ideale per un negozio Zara City format.
+* Punti di forza location: Vetrine ampie (15m lineari) perfette per visual merchandising Zara. Posizione angolare con doppio affaccio aumenta visibilità. Parcheggi nelle vicinanze facilitano shopping del weekend.
+* Target e traffico: Il target femminile 25-45 anni (60% dei passanti rilevati) coincide perfettamente con il core customer di Zara. Flusso stimato di 8.000 persone/giorno assicura buona conversion rate.
+* Considerazioni operative: Necessaria altezza soffitti >3.5m per layout Zara standard (VERIFICARE). Richiesta climatizzazione multi-zona. Investimento vetrine e arredo ~€80k-120k standard Zara.
 
-Concludi con una sintesi finale e raccomandazioni strategiche.`;
+Ordina i brand dal più compatibile al meno compatibile.
+Concludi con una sintesi finale e raccomandazioni strategiche sulla mix di brand ideale.`;
 
         StorebotUtils.showGlobalLoading("Analisi compatibilità brand...");
         outputDiv.classList.add('placeholder');
@@ -345,10 +409,10 @@ Concludi con una sintesi finale e raccomandazioni strategiche.`;
         try {
             const report = await StorebotUtils.callGeminiAPI(prompt);
             lastMatchingMessage = report; // Salva il testo plain
-            
+
             outputDiv.classList.remove('placeholder');
-            outputDiv.innerHTML = formatMatchingResults(report);
-            
+            outputDiv.innerHTML = formatMatchingResults(report, existingBrands);
+
             // Anima le barre di progresso dopo un breve delay
             setTimeout(() => {
                 const bars = outputDiv.querySelectorAll('.matching-bar-fill');
@@ -359,7 +423,7 @@ Concludi con una sintesi finale e raccomandazioni strategiche.`;
                     }
                 });
             }, 100);
-            
+
             copyBtn.style.display = 'inline-flex';
             if (downloadBtn) downloadBtn.style.display = 'inline-flex';
             // Mostra la sezione delle azioni
@@ -369,7 +433,7 @@ Concludi con una sintesi finale e raccomandazioni strategiche.`;
             }
             localStorage.setItem('storebot_brandMatchingReport', report);
             StorebotUtils.showTemporaryMessage("Analisi matching completata!", "success");
-            
+
             // Aggiorna le icone Lucide
             lucide.createIcons();
             
@@ -382,33 +446,56 @@ Concludi con una sintesi finale e raccomandazioni strategiche.`;
         }
     }
 
-    function formatMatchingResults(message) {
+    function formatMatchingResults(message, existingBrands = []) {
         const brandData = extractBrandData(message);
-        
+
         if (!brandData || brandData.length === 0) {
             return '<div class="matching-content"><p>Nessun risultato di matching trovato.</p></div>';
         }
-        
+
         let formatted = '<div class="matching-content">';
-        
+
+        // Avviso brand esclusi (se presenti)
+        if (existingBrands.length > 0) {
+            formatted += `
+                <div style="background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%); border-radius: 12px; padding: 20px; margin-bottom: 24px; border: 1px solid #FBBF24;">
+                    <div style="display: flex; align-items: center; gap: 8px; font-weight: 600; color: #92400E; margin-bottom: 12px;">
+                        <i data-lucide="alert-circle" style="width: 20px; height: 20px;"></i>
+                        Brand già presenti nel quartiere (esclusi dai suggerimenti)
+                    </div>
+                    <div style="color: #78350F; font-size: 14px; line-height: 1.6;">
+                        Sono stati esclusi <strong>${existingBrands.length} brand</strong> già rilevati nell'analisi del quartiere:
+                        <div style="margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px;">
+                            ${existingBrands.slice(0, 10).map(b =>
+                                `<span style="background: white; padding: 4px 12px; border-radius: 6px; font-size: 13px; border: 1px solid #FCD34D;">
+                                    ${b.name}
+                                </span>`
+                            ).join('')}
+                            ${existingBrands.length > 10 ? `<span style="color: #92400E; font-size: 13px; padding: 4px;">+${existingBrands.length - 10} altri</span>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
         // Summary section
         const highMatchBrands = brandData.filter(b => b.score >= 7);
         const mediumMatchBrands = brandData.filter(b => b.score >= 5 && b.score < 7);
-        
+
         if (highMatchBrands.length > 0 || mediumMatchBrands.length > 0) {
             formatted += `
                 <div class="matching-summary">
                     <div class="matching-summary-title">
                         <i data-lucide="sparkles"></i>
-                        Risultati Matching
+                        Nuovi Brand Suggeriti
                     </div>
                     <div class="matching-summary-content">
-                        ${highMatchBrands.length > 0 ? 
-                        `Abbiamo trovato <strong>${highMatchBrands.length} brand</strong> con alta compatibilità 
+                        ${highMatchBrands.length > 0 ?
+                        `Abbiamo identificato <strong>${highMatchBrands.length} brand</strong> con alta compatibilità
                         (punteggio ≥ 7/10) per questo immobile.` : ''}
-                        ${mediumMatchBrands.length > 0 ? 
-                        `${highMatchBrands.length > 0 ? 'Altri' : 'Trovati'} ${mediumMatchBrands.length} brand con compatibilità media.` : ''}
-                        <br><small style="display: block; margin-top: 8px; opacity: 0.8;">💡 Clicca su una card per vedere l'analisi dettagliata</small>
+                        ${mediumMatchBrands.length > 0 ?
+                        `${highMatchBrands.length > 0 ? 'Altri' : 'Identificati'} ${mediumMatchBrands.length} brand con compatibilità media.` : ''}
+                        <br><small style="display: block; margin-top: 8px; opacity: 0.8;">💡 Clicca su una card per vedere l'analisi dettagliata e le ragioni del matching</small>
                     </div>
                 </div>
             `;
@@ -519,13 +606,30 @@ Concludi con una sintesi finale e raccomandazioni strategiche.`;
                 ${brand.details.length > 0 ? `
                     <div class="brand-details">
                         ${brand.details.slice(0, 2).map((detail) => {
-                            const isStrength = detail.toLowerCase().includes('punti di forza') || detail.toLowerCase().includes('descrizione');
-                            const icon = isStrength ? 'check-circle' : 'info';
-                            const cleanDetail = detail.replace(/^(Descrizione:|Punti di forza:|Requisiti soddisfatti:|Considerazioni:)\s*/i, '');
-                            
+                            // Identifica il tipo di dettaglio per icona appropriata
+                            const lowerDetail = detail.toLowerCase();
+                            let icon = 'info';
+                            let iconClass = '';
+
+                            if (lowerDetail.includes('ragioni del matching') || lowerDetail.includes('matching')) {
+                                icon = 'target';
+                                iconClass = 'score-high';
+                            } else if (lowerDetail.includes('punti di forza') || lowerDetail.includes('forza location')) {
+                                icon = 'check-circle';
+                                iconClass = 'score-high';
+                            } else if (lowerDetail.includes('target') || lowerDetail.includes('traffico')) {
+                                icon = 'users';
+                                iconClass = '';
+                            } else if (lowerDetail.includes('descrizione')) {
+                                icon = 'info';
+                                iconClass = '';
+                            }
+
+                            const cleanDetail = detail.replace(/^(Descrizione:|Ragioni del matching:|Punti di forza location:|Target e traffico:|Requisiti soddisfatti:|Considerazioni operative:|Considerazioni:)\s*/i, '');
+
                             return `
                                 <div class="brand-detail-item">
-                                    <i data-lucide="${icon}" class="brand-detail-icon ${isStrength ? 'score-high' : ''}"></i>
+                                    <i data-lucide="${icon}" class="brand-detail-icon ${iconClass}"></i>
                                     <div class="brand-detail-text">${formatText(cleanDetail)}</div>
                                 </div>
                             `;
@@ -560,15 +664,31 @@ Concludi con una sintesi finale e raccomandazioni strategiche.`;
 
     function formatFullText(text) {
         if (!text) return '';
-        
+
         const lines = text.split('\n');
         const formattedLines = lines.map(line => {
             if (line.trim().startsWith('*')) {
                 let content = line.trim().substring(1).trim();
-                
-                // Evidenzia le etichette (es. "Descrizione:", "Punti di forza:", etc.)
-                content = content.replace(/^([^:]+:)/, '<strong>$1</strong>');
-                
+
+                // Identifica il tipo di sezione per styling specifico
+                const isMatchingReason = content.toLowerCase().startsWith('ragioni del matching:');
+                const isStrength = content.toLowerCase().startsWith('punti di forza');
+                const isTarget = content.toLowerCase().startsWith('target');
+
+                // Evidenzia le etichette con colori diversi
+                if (isMatchingReason) {
+                    content = content.replace(/^(Ragioni del matching:)/i, '<strong style="color: #059669; font-size: 1.05em;">🎯 $1</strong>');
+                    return `<div style="margin-bottom: 16px; padding: 12px; background: linear-gradient(135deg, #D1FAE5 0%, #A7F3D0 100%); border-radius: 8px; border-left: 4px solid #059669;">
+                        ${content}
+                    </div>`;
+                } else if (isStrength) {
+                    content = content.replace(/^([^:]+:)/, '<strong style="color: #0891B2;">✓ $1</strong>');
+                } else if (isTarget) {
+                    content = content.replace(/^([^:]+:)/, '<strong style="color: #7C3AED;">👥 $1</strong>');
+                } else {
+                    content = content.replace(/^([^:]+:)/, '<strong>$1</strong>');
+                }
+
                 return `<div style="margin-bottom: 12px; padding-left: 20px; position: relative;">
                     <span style="position: absolute; left: 0;">•</span>
                     ${content}
@@ -576,7 +696,7 @@ Concludi con una sintesi finale e raccomandazioni strategiche.`;
             }
             return line;
         });
-        
+
         return formattedLines.join('\n');
     }
 
