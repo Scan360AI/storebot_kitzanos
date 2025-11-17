@@ -46,66 +46,9 @@ export const ContextAnalyzer = () => {
       return;
     }
 
-    if (!settings.apiKeys.googleMaps) {
-      toast.warning('Google Maps API non configurata. Cercando POI con Gemini AI...');
-      await searchPOIsWithGemini();
-      return;
-    }
-
-    setIsSearching(true);
-
-    try {
-      // Geocode the address
-      const geocodeResponse = await fetch(
-        `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
-          address
-        )}&key=${settings.apiKeys.googleMaps}`
-      );
-      const geocodeData = await geocodeResponse.json();
-
-      if (geocodeData.status !== 'OK' || !geocodeData.results[0]) {
-        throw new Error('Indirizzo non trovato');
-      }
-
-      const location = geocodeData.results[0].geometry.location;
-
-      // Search for nearby places
-      const placesResponse = await fetch(
-        `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${location.lat},${location.lng}&radius=${radius}&key=${settings.apiKeys.googleMaps}`
-      );
-      const placesData = await placesResponse.json();
-
-      if (placesData.status !== 'OK') {
-        throw new Error(placesData.error_message || 'Errore nella ricerca dei POI');
-      }
-
-      const discoveredPois: POI[] = placesData.results.slice(0, 50).map((place: any) => ({
-        name: place.name,
-        type: place.types[0] || 'store',
-        category: categorizePlace(place.types),
-        address: place.vicinity,
-        distance: calculateDistance(
-          location.lat,
-          location.lng,
-          place.geometry.location.lat,
-          place.geometry.location.lng
-        ),
-        rating: place.rating,
-      }));
-
-      setPois(discoveredPois);
-
-      if (!currentAnalysis) {
-        createNewAnalysis(address);
-      }
-
-      toast.success(`${discoveredPois.length} POI trovati nel raggio di ${radius}m`);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Errore nella ricerca POI');
-      console.error(error);
-    } finally {
-      setIsSearching(false);
-    }
+    // Usa sempre Gemini AI per cercare POI (Google Maps API richiede backend proxy per CORS)
+    toast.info('Cercando POI con Gemini AI...');
+    await searchPOIsWithGemini();
   };
 
   const searchPOIsWithGemini = async () => {
@@ -238,32 +181,6 @@ Scrivi in tono professionale, adatto a un report immobiliare.`;
       return;
     }
     navigate('/property');
-  };
-
-  const categorizePlace = (types: string[]): string => {
-    if (types.some((t) => ['restaurant', 'cafe', 'bar', 'food'].includes(t)))
-      return 'food_beverage';
-    if (types.some((t) => ['store', 'shopping_mall', 'clothing_store'].includes(t)))
-      return 'retail';
-    if (types.some((t) => ['supermarket', 'grocery'].includes(t))) return 'supermarket';
-    if (types.some((t) => ['bank', 'atm'].includes(t))) return 'finance';
-    if (types.some((t) => ['pharmacy', 'health'].includes(t))) return 'health';
-    return 'other';
-  };
-
-  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
-    const R = 6371e3; // Earth radius in meters
-    const φ1 = (lat1 * Math.PI) / 180;
-    const φ2 = (lat2 * Math.PI) / 180;
-    const Δφ = ((lat2 - lat1) * Math.PI) / 180;
-    const Δλ = ((lon2 - lon1) * Math.PI) / 180;
-
-    const a =
-      Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-      Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-    return Math.round(R * c);
   };
 
   const getCategoryBadgeVariant = (category: string) => {
