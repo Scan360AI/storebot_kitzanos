@@ -46,9 +46,105 @@ export const ContextAnalyzer = () => {
       return;
     }
 
-    // Usa sempre Gemini AI per cercare POI (Google Maps API richiede backend proxy per CORS)
-    toast.info('Cercando POI con Gemini AI...');
-    await searchPOIsWithGemini();
+    // Prova prima con Google Maps se configurato, altrimenti usa Gemini AI
+    if (settings.apiKeys.googleMaps) {
+      toast.info('Cercando POI con Google Maps...');
+      await searchPOIsWithGoogleMaps();
+    } else {
+      toast.info('Google Maps non configurato. Usando Gemini AI...');
+      await searchPOIsWithGemini();
+    }
+  };
+
+  const searchPOIsWithGoogleMaps = async () => {
+    setIsSearching(true);
+
+    try {
+      // Determine if we're on Netlify or localhost
+      const isProduction = window.location.hostname !== 'localhost';
+      const functionBase = isProduction ? '/.netlify/functions' : 'http://localhost:8888/.netlify/functions';
+
+      // Step 1: Geocode the address
+      const geocodeUrl = `${functionBase}/geocode?address=${encodeURIComponent(
+        address
+      )}&apiKey=${settings.apiKeys.googleMaps}`;
+
+      const geocodeResponse = await fetch(geocodeUrl);
+      const geocodeData = await geocodeResponse.json();
+
+      if (geocodeData.status !== 'OK' || !geocodeData.results?.[0]) {
+        throw new Error('Indirizzo non trovato');
+      }
+
+      const location = geocodeData.results[0].geometry.location;
+
+      // Step 2: Search for nearby places
+      const placesUrl = `${functionBase}/places-nearby?location=${location.lat},${location.lng}&radius=${radius}&apiKey=${settings.apiKeys.googleMaps}`;
+
+      const placesResponse = await fetch(placesUrl);
+      const placesData = await placesResponse.json();
+
+      if (placesData.status !== 'OK') {
+        throw new Error(placesData.error_message || 'Errore nella ricerca dei POI');
+      }
+
+      // Categorize places
+      const categorizePlace = (types: string[]): string => {
+        if (types.some((t) => ['restaurant', 'cafe', 'bar', 'food'].includes(t)))
+          return 'food_beverage';
+        if (types.some((t) => ['store', 'shopping_mall', 'clothing_store'].includes(t)))
+          return 'retail';
+        if (types.some((t) => ['supermarket', 'grocery'].includes(t))) return 'supermarket';
+        if (types.some((t) => ['bank', 'atm'].includes(t))) return 'finance';
+        if (types.some((t) => ['pharmacy', 'health'].includes(t))) return 'health';
+        return 'other';
+      };
+
+      // Calculate distance
+      const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+        const R = 6371e3;
+        const φ1 = (lat1 * Math.PI) / 180;
+        const φ2 = (lat2 * Math.PI) / 180;
+        const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+        const Δλ = ((lon2 - lon1) * Math.PI) / 180;
+
+        const a =
+          Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+          Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+        return Math.round(R * c);
+      };
+
+      const discoveredPois: POI[] = placesData.results.slice(0, 50).map((place: any) => ({
+        name: place.name,
+        type: place.types?.[0] || 'store',
+        category: categorizePlace(place.types || []),
+        address: place.vicinity,
+        distance: calculateDistance(
+          location.lat,
+          location.lng,
+          place.geometry?.location?.lat,
+          place.geometry?.location?.lng
+        ),
+        rating: place.rating,
+      }));
+
+      setPois(discoveredPois);
+
+      if (!currentAnalysis) {
+        createNewAnalysis(address);
+      }
+
+      toast.success(`${discoveredPois.length} POI trovati nel raggio di ${radius}m`);
+    } catch (error) {
+      console.error('Google Maps error:', error);
+      toast.warning('Errore con Google Maps. Provo con Gemini AI...');
+      // Fallback to Gemini AI
+      await searchPOIsWithGemini();
+    } finally {
+      setIsSearching(false);
+    }
   };
 
   const searchPOIsWithGemini = async () => {
