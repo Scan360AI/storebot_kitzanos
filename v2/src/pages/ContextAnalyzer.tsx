@@ -1,17 +1,43 @@
 import { useState, useEffect } from 'react';
-import { MapPin, Search, Sparkles, ArrowRight, CheckCircle } from 'lucide-react';
+import { MapPin, Search, Sparkles, ArrowRight, CheckCircle, X, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { PageContainer } from '../components/layout/PageContainer';
 import { Card, CardHeader } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Stepper } from '../components/ui/Stepper';
+import { POIMap, POIMarker } from '../components/maps/POIMap';
 import { useAnalysisStore } from '../stores/useAnalysisStore';
 import { useSettingsStore } from '../stores/useSettingsStore';
 import { GeminiService } from '../services/api/gemini';
 import { toast } from '../components/ui/Toast';
 import { useNavigate } from 'react-router-dom';
-import type { POI } from '../types';
+import { CATEGORIES_CONFIG, getCategoryNames, getCategoryConfig } from '../config/brands';
+import { brandMatcher, POIClassification } from '../utils/brandMatcher';
+
+interface EnrichedPOI {
+  id: string;
+  name: string;
+  type: string;
+  category: string;
+  address: string;
+  distance: number;
+  rating?: number;
+  position?: {
+    lat: number;
+    lng: number;
+  };
+  classification: POIClassification;
+}
+
+interface CategoryStats {
+  name: string;
+  count: number;
+  brandCount: number;
+  localCount: number;
+  icon: string;
+  color: string;
+}
 
 export const ContextAnalyzer = () => {
   const navigate = useNavigate();
@@ -22,10 +48,16 @@ export const ContextAnalyzer = () => {
 
   const [address, setAddress] = useState(currentAnalysis?.address || '');
   const [radius, setRadius] = useState(500);
-  const [pois, setPois] = useState<POI[]>(currentAnalysis?.context?.pois || []);
+  const [pois, setPois] = useState<EnrichedPOI[]>([]);
   const [summary, setSummary] = useState(currentAnalysis?.context?.summary || '');
   const [isSearching, setIsSearching] = useState(false);
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number }>({
+    lat: 45.4642,
+    lng: 9.19,
+  });
 
   const steps = [
     { id: 'context', label: 'Analisi Contesto', completed: !!currentAnalysis?.context },
@@ -40,13 +72,45 @@ export const ContextAnalyzer = () => {
     }
   }, []);
 
+  // Calculate category statistics
+  const categoryStats: CategoryStats[] = getCategoryNames().map((categoryName) => {
+    const categoryPOIs = pois.filter((poi) => poi.category === categoryName);
+    const brandPOIs = categoryPOIs.filter((poi) => poi.classification.isBrand);
+    const config = getCategoryConfig(categoryName);
+
+    return {
+      name: categoryName,
+      count: categoryPOIs.length,
+      brandCount: brandPOIs.length,
+      localCount: categoryPOIs.length - brandPOIs.length,
+      icon: config?.icon || '📍',
+      color: config?.color || '#gray',
+    };
+  }).filter((stat) => stat.count > 0);
+
+  // Get POIs for selected category
+  const getFilteredPOIs = (): EnrichedPOI[] => {
+    if (!selectedCategory) return pois;
+    return pois.filter((poi) => poi.category === selectedCategory);
+  };
+
+  // Map markers
+  const mapMarkers: POIMarker[] = pois.map((poi) => ({
+    id: poi.id,
+    name: poi.name,
+    position: poi.position || mapCenter,
+    category: poi.category,
+    isBrand: poi.classification.isBrand,
+    brandName: poi.classification.brandName,
+    address: poi.address,
+  }));
+
   const searchPOIs = async () => {
     if (!address.trim()) {
       toast.error('Inserisci un indirizzo');
       return;
     }
 
-    // Prova prima con Google Maps se configurato, altrimenti usa Gemini AI
     if (settings.apiKeys.googleMaps) {
       toast.info('Cercando POI con Google Maps...');
       await searchPOIsWithGoogleMaps();
@@ -56,15 +120,26 @@ export const ContextAnalyzer = () => {
     }
   };
 
+  const categorizeByTypes = (types: string[]): string => {
+    // Match types against categories from CATEGORIES_CONFIG
+    for (const [categoryName, categoryConfig] of Object.entries(CATEGORIES_CONFIG)) {
+      if (types.some((type) => categoryConfig.types.includes(type))) {
+        return categoryName;
+      }
+    }
+    return 'Altro';
+  };
+
   const searchPOIsWithGoogleMaps = async () => {
     setIsSearching(true);
 
     try {
-      // Determine if we're on Netlify or localhost
       const isProduction = window.location.hostname !== 'localhost';
-      const functionBase = isProduction ? '/.netlify/functions' : 'http://localhost:8888/.netlify/functions';
+      const functionBase = isProduction
+        ? '/.netlify/functions'
+        : 'http://localhost:8888/.netlify/functions';
 
-      // Step 1: Geocode the address
+      // Step 1: Geocode
       const geocodeUrl = `${functionBase}/geocode?address=${encodeURIComponent(
         address
       )}&apiKey=${settings.apiKeys.googleMaps}`;
@@ -77,8 +152,9 @@ export const ContextAnalyzer = () => {
       }
 
       const location = geocodeData.results[0].geometry.location;
+      setMapCenter({ lat: location.lat, lng: location.lng });
 
-      // Step 2: Search for nearby places
+      // Step 2: Search nearby places
       const placesUrl = `${functionBase}/places-nearby?location=${location.lat},${location.lng}&radius=${radius}&apiKey=${settings.apiKeys.googleMaps}`;
 
       const placesResponse = await fetch(placesUrl);
@@ -88,20 +164,13 @@ export const ContextAnalyzer = () => {
         throw new Error(placesData.error_message || 'Errore nella ricerca dei POI');
       }
 
-      // Categorize places
-      const categorizePlace = (types: string[]): string => {
-        if (types.some((t) => ['restaurant', 'cafe', 'bar', 'food'].includes(t)))
-          return 'food_beverage';
-        if (types.some((t) => ['store', 'shopping_mall', 'clothing_store'].includes(t)))
-          return 'retail';
-        if (types.some((t) => ['supermarket', 'grocery'].includes(t))) return 'supermarket';
-        if (types.some((t) => ['bank', 'atm'].includes(t))) return 'finance';
-        if (types.some((t) => ['pharmacy', 'health'].includes(t))) return 'health';
-        return 'other';
-      };
-
       // Calculate distance
-      const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+      const calculateDistance = (
+        lat1: number,
+        lon1: number,
+        lat2: number,
+        lon2: number
+      ): number => {
         const R = 6371e3;
         const φ1 = (lat1 * Math.PI) / 180;
         const φ2 = (lat2 * Math.PI) / 180;
@@ -116,31 +185,48 @@ export const ContextAnalyzer = () => {
         return Math.round(R * c);
       };
 
-      const discoveredPois: POI[] = placesData.results.slice(0, 50).map((place: any) => ({
-        name: place.name,
-        type: place.types?.[0] || 'store',
-        category: categorizePlace(place.types || []),
-        address: place.vicinity,
-        distance: calculateDistance(
-          location.lat,
-          location.lng,
-          place.geometry?.location?.lat,
-          place.geometry?.location?.lng
-        ),
-        rating: place.rating,
-      }));
+      // Process and enrich POIs
+      const enrichedPOIs: EnrichedPOI[] = placesData.results
+        .slice(0, 100)
+        .map((place: any, index: number) => {
+          const category = categorizeByTypes(place.types || []);
+          const classification = brandMatcher.classifyPOI(place.name);
 
-      setPois(discoveredPois);
+          return {
+            id: `poi_${index}`,
+            name: place.name,
+            type: place.types?.[0] || 'store',
+            category,
+            address: place.vicinity || '',
+            distance: calculateDistance(
+              location.lat,
+              location.lng,
+              place.geometry?.location?.lat,
+              place.geometry?.location?.lng
+            ),
+            rating: place.rating,
+            position: {
+              lat: place.geometry?.location?.lat,
+              lng: place.geometry?.location?.lng,
+            },
+            classification,
+          };
+        });
+
+      setPois(enrichedPOIs);
 
       if (!currentAnalysis) {
         createNewAnalysis(address);
       }
 
-      toast.success(`${discoveredPois.length} POI trovati nel raggio di ${radius}m`);
+      toast.success(
+        `${enrichedPOIs.length} POI trovati (${
+          enrichedPOIs.filter((p) => p.classification.isBrand).length
+        } brand riconosciuti)`
+      );
     } catch (error) {
       console.error('Google Maps error:', error);
       toast.warning('Errore con Google Maps. Provo con Gemini AI...');
-      // Fallback to Gemini AI
       await searchPOIsWithGemini();
     } finally {
       setIsSearching(false);
@@ -152,14 +238,19 @@ export const ContextAnalyzer = () => {
 
     try {
       const gemini = new GeminiService(settings.apiKeys.gemini);
+      const categoryNames = getCategoryNames().join(', ');
+
       const prompt = `Analizza l'indirizzo: "${address}"
 
-Identifica e elenca tutti i POI (Points of Interest) commerciali probabili nel raggio di ${radius} metri da questo indirizzo.
+Identifica e elenca tutti i POI (Points of Interest) commerciali probabili nel raggio di ${radius} metri.
+
+Categorie disponibili: ${categoryNames}
 
 Per ogni POI fornisci:
-- Nome esatto (brand specifico se riconoscibile, altrimenti descrizione generica)
-- Tipo (es: restaurant, cafe, store, supermarket, bank, pharmacy, etc.)
-- Categoria (es: food_beverage, retail, services, etc.)
+- Nome esatto (brand specifico se riconoscibile)
+- Tipo Google Maps (es: restaurant, cafe, store, supermarket)
+- Categoria (una delle categorie sopra elencate)
+- Indirizzo stimato
 - Distanza stimata in metri
 
 Rispondi in formato JSON array:
@@ -168,11 +259,12 @@ Rispondi in formato JSON array:
     "name": "Nome POI",
     "type": "tipo",
     "category": "categoria",
+    "address": "indirizzo",
     "distance": 100
   }
 ]
 
-Fornisci almeno 20-30 POI realistici basati sulla zona geografica.`;
+Fornisci almeno 30-50 POI realistici basati sulla zona.`;
 
       const result = await gemini.generateText(prompt, { model: settings.geminiModel });
       const jsonMatch = result.match(/\[[\s\S]*\]/);
@@ -182,23 +274,33 @@ Fornisci almeno 20-30 POI realistici basati sulla zona geografica.`;
       }
 
       const poisData = JSON.parse(jsonMatch[0]);
-      const discoveredPois: POI[] = poisData.map((poi: any) => ({
-        name: poi.name,
-        type: poi.type || 'store',
-        category: poi.category || 'retail',
-        address: `Vicino a ${address}`,
-        distance: poi.distance || 0,
-      }));
+      const enrichedPOIs: EnrichedPOI[] = poisData.map((poi: any, index: number) => {
+        const classification = brandMatcher.classifyPOI(poi.name);
 
-      setPois(discoveredPois);
+        return {
+          id: `poi_${index}`,
+          name: poi.name,
+          type: poi.type || 'store',
+          category: poi.category || 'Altro',
+          address: poi.address || `Vicino a ${address}`,
+          distance: poi.distance || 0,
+          classification,
+        };
+      });
+
+      setPois(enrichedPOIs);
 
       if (!currentAnalysis) {
         createNewAnalysis(address);
       }
 
-      toast.success(`${discoveredPois.length} POI identificati con AI`);
+      toast.success(
+        `${enrichedPOIs.length} POI identificati con AI (${
+          enrichedPOIs.filter((p) => p.classification.isBrand).length
+        } brand riconosciuti)`
+      );
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Errore nella ricerca POI con AI');
+      toast.error(error instanceof Error ? error.message : 'Errore nella ricerca POI');
       console.error(error);
     } finally {
       setIsSearching(false);
@@ -215,34 +317,36 @@ Fornisci almeno 20-30 POI realistici basati sulla zona geografica.`;
 
     try {
       const gemini = new GeminiService(settings.apiKeys.gemini);
+      const brandPOIs = pois.filter((poi) => poi.classification.isBrand);
 
-      const brandsPresentCount = pois.filter((poi) =>
-        poi.name.match(/^[A-Z]/)
-      ).length;
+      const prompt = `Analizza questo contesto commerciale per un immobile a: ${address}
 
-      const categoryCounts = pois.reduce((acc, poi) => {
-        acc[poi.category] = (acc[poi.category] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>);
+STATISTICHE POI (${pois.length} totali):
+- Brand riconosciuti: ${brandPOIs.length}
+- Attività locali: ${pois.length - brandPOIs.length}
 
-      const prompt = `Analizza questo contesto commerciale per un immobile situato a: ${address}
+CATEGORIE:
+${categoryStats
+  .map(
+    (stat) =>
+      `- ${stat.icon} ${stat.name}: ${stat.count} (${stat.brandCount} brand, ${stat.localCount} locali)`
+  )
+  .join('\n')}
 
-POI TROVATI (${pois.length} totali):
+BRAND PRINCIPALI:
+${brandPOIs
+  .slice(0, 20)
+  .map((poi) => `- ${poi.classification.brandName} (${poi.distance}m)`)
+  .join('\n')}
+
+POI RILEVANTI:
 ${pois
   .slice(0, 30)
   .map((poi) => `- ${poi.name} (${poi.category}, ${poi.distance}m)`)
   .join('\n')}
 
-STATISTICHE:
-- Brand riconoscibili: ${brandsPresentCount}
-- Categorie principali: ${Object.entries(categoryCounts)
-  .sort((a, b) => b[1] - a[1])
-  .slice(0, 5)
-  .map(([cat, count]) => `${cat} (${count})`)
-  .join(', ')}
-
 Genera una descrizione professionale del quartiere (300-400 parole) che includa:
-1. Caratterizzazione generale dell'area (residenziale, commerciale, mista)
+1. Caratterizzazione generale dell'area
 2. Tipologie di attività prevalenti
 3. Brand e catene presenti (elenca i principali)
 4. Flusso e target clienti probabile
@@ -251,20 +355,28 @@ Genera una descrizione professionale del quartiere (300-400 parole) che includa:
 
 Scrivi in tono professionale, adatto a un report immobiliare.`;
 
-      const generatedSummary = await gemini.generateText(prompt, { model: settings.geminiModel });
+      const generatedSummary = await gemini.generateText(prompt, {
+        model: settings.geminiModel,
+      });
       setSummary(generatedSummary);
 
-      // Save to store
       setContext({
-        pois,
+        pois: pois.map((poi) => ({
+          name: poi.name,
+          type: poi.type,
+          category: poi.category,
+          address: poi.address,
+          distance: poi.distance,
+          rating: poi.rating,
+        })),
         summary: generatedSummary,
-        brandsPresentCount,
-        categories: Object.keys(categoryCounts),
+        brandsPresentCount: brandPOIs.length,
+        categories: categoryStats.map((s) => s.name),
       });
 
       toast.success('Summary generato con successo');
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Errore nella generazione summary');
+      toast.error(error instanceof Error ? error.message : 'Errore generazione summary');
       console.error(error);
     } finally {
       setIsGeneratingSummary(false);
@@ -279,15 +391,27 @@ Scrivi in tono professionale, adatto a un report immobiliare.`;
     navigate('/property');
   };
 
-  const getCategoryBadgeVariant = (category: string) => {
-    const variants: Record<string, 'default' | 'success' | 'warning' | 'error' | 'info'> = {
-      food_beverage: 'warning',
-      retail: 'info',
-      supermarket: 'success',
-      finance: 'default',
-      health: 'error',
-    };
-    return variants[category] || 'default';
+  const handleCategoryClick = (categoryName: string) => {
+    setSelectedCategory(categoryName);
+    setShowCategoryModal(true);
+  };
+
+  const handleWhitelist = (poi: EnrichedPOI) => {
+    if (poi.classification.brandKey) {
+      brandMatcher.addToWhitelist(poi.name, poi.classification.brandKey);
+      toast.success(`${poi.name} confermato come ${poi.classification.brandName}`);
+      // Re-classify POIs
+      setPois(pois.map((p) => (p.id === poi.id ? { ...p, classification: { ...p.classification, isWhitelisted: true } } : p)));
+    }
+  };
+
+  const handleBlacklist = (poi: EnrichedPOI) => {
+    if (poi.classification.brandKey) {
+      brandMatcher.addToBlacklist(poi.name, poi.classification.brandKey);
+      toast.info(`${poi.name} marcato come locale (non ${poi.classification.brandName})`);
+      // Re-classify POIs
+      setPois(pois.map((p) => (p.id === poi.id ? { ...p, classification: { isBrand: false } } : p)));
+    }
   };
 
   return (
@@ -297,10 +421,9 @@ Scrivi in tono professionale, adatto a un report immobiliare.`;
       icon={MapPin}
     >
       <div className="space-y-6">
-        {/* Stepper */}
         <Stepper steps={steps} currentStep="context" />
 
-        {/* Address input */}
+        {/* Address Input */}
         <Card padding="md">
           <CardHeader
             title="Indirizzo Immobile"
@@ -341,35 +464,138 @@ Scrivi in tono professionale, adatto a un report immobiliare.`;
           </div>
         </Card>
 
-        {/* POI Results */}
+        {/* Google Map */}
         {pois.length > 0 && (
           <Card padding="md">
             <CardHeader
-              title="POI Trovati"
-              subtitle={`${pois.length} punti di interesse nel raggio di ${radius}m`}
+              title="Mappa POI"
+              subtitle={`${pois.length} punti di interesse trovati`}
               icon={MapPin}
-              action={<Badge variant="success">{pois.length} POI</Badge>}
             />
-            <div className="mt-4 max-h-96 overflow-y-auto space-y-2">
-              {pois.map((poi, index) => (
-                <div
-                  key={index}
-                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+            <div className="mt-4">
+              <POIMap
+                center={mapCenter}
+                markers={mapMarkers}
+                selectedCategory={selectedCategory || undefined}
+                zoom={15}
+              />
+            </div>
+          </Card>
+        )}
+
+        {/* Category Stats */}
+        {categoryStats.length > 0 && (
+          <Card padding="md">
+            <CardHeader
+              title="Categorie POI"
+              subtitle="Clicca su una categoria per vedere i dettagli"
+              icon={MapPin}
+            />
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {categoryStats.map((stat) => (
+                <button
+                  key={stat.name}
+                  onClick={() => handleCategoryClick(stat.name)}
+                  className="p-4 bg-white border-2 border-gray-200 rounded-lg hover:border-primary-500 hover:shadow-md transition-all text-left"
+                  style={{ borderColor: stat.color }}
                 >
-                  <div className="flex-1">
-                    <h4 className="font-medium text-gray-900">{poi.name}</h4>
-                    <p className="text-sm text-gray-600">{poi.address}</p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Badge variant={getCategoryBadgeVariant(poi.category)}>
-                      {poi.category}
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-2xl">{stat.icon}</span>
+                    <Badge variant="default" style={{ backgroundColor: stat.color }}>
+                      {stat.count}
                     </Badge>
-                    <span className="text-sm text-gray-500">{poi.distance}m</span>
                   </div>
-                </div>
+                  <h4 className="font-semibold text-gray-900 mb-1">{stat.name}</h4>
+                  <p className="text-sm text-gray-600">
+                    {stat.brandCount} brand • {stat.localCount} locali
+                  </p>
+                </button>
               ))}
             </div>
           </Card>
+        )}
+
+        {/* Category Modal */}
+        {showCategoryModal && selectedCategory && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
+              <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">
+                    {getCategoryConfig(selectedCategory)?.icon} {selectedCategory}
+                  </h3>
+                  <p className="text-sm text-gray-600 mt-1">
+                    {getFilteredPOIs().length} POI in questa categoria
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowCategoryModal(false);
+                    setSelectedCategory(null);
+                  }}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+                <div className="space-y-3">
+                  {getFilteredPOIs().map((poi) => (
+                    <div
+                      key={poi.id}
+                      className="p-4 bg-gray-50 rounded-lg border border-gray-200"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="font-semibold text-gray-900">{poi.name}</h4>
+                            {poi.classification.isBrand ? (
+                              <Badge variant="info">
+                                🏢 {poi.classification.brandName}
+                              </Badge>
+                            ) : (
+                              <Badge variant="default">📍 Locale</Badge>
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-600">{poi.address}</p>
+                          <div className="flex items-center gap-3 mt-2">
+                            <span className="text-sm text-gray-500">
+                              {poi.distance}m
+                            </span>
+                            {poi.rating && (
+                              <span className="text-sm text-gray-500">
+                                ⭐ {poi.rating}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        {poi.classification.isBrand &&
+                          !poi.classification.isWhitelisted &&
+                          poi.classification.matchType === 'fuzzy' && (
+                            <div className="flex gap-2 ml-4">
+                              <button
+                                onClick={() => handleWhitelist(poi)}
+                                className="p-2 hover:bg-green-100 rounded-lg transition-colors"
+                                title="Conferma brand"
+                              >
+                                <ThumbsUp className="w-4 h-4 text-green-600" />
+                              </button>
+                              <button
+                                onClick={() => handleBlacklist(poi)}
+                                className="p-2 hover:bg-red-100 rounded-lg transition-colors"
+                                title="Marca come locale"
+                              >
+                                <ThumbsDown className="w-4 h-4 text-red-600" />
+                              </button>
+                            </div>
+                          )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Generate Summary */}
@@ -405,7 +631,7 @@ Scrivi in tono professionale, adatto a un report immobiliare.`;
           </Card>
         )}
 
-        {/* Next step */}
+        {/* Next Step */}
         {summary && (
           <div className="flex justify-end">
             <Button variant="primary" icon={ArrowRight} onClick={handleNext}>
