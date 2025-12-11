@@ -3,12 +3,14 @@ import { useAppStore } from '../store/appStore';
 import { geminiService } from '../services/gemini.service';
 import { openRouterService } from '../services/openrouter.service';
 import { storebotService } from '../services/storebot.service';
+import { openApiRealEstateService } from '../services/openapi-realestate.service';
 
 export interface ApiKeyValidation {
   gmaps: { valid: boolean; loading: boolean; error?: string };
   gemini: { valid: boolean; loading: boolean; error?: string };
   botId: { valid: boolean; loading: boolean; error?: string };
   openrouter: { valid: boolean; loading: boolean; error?: string };
+  openapi: { valid: boolean; loading: boolean; error?: string };
 }
 
 export function useApiKeys() {
@@ -18,7 +20,8 @@ export function useApiKeys() {
     gmaps: { valid: false, loading: false },
     gemini: { valid: false, loading: false },
     botId: { valid: false, loading: false },
-    openrouter: { valid: false, loading: false }
+    openrouter: { valid: false, loading: false },
+    openapi: { valid: false, loading: false }
   });
 
   const testGmapsKey = useCallback(async (key: string): Promise<boolean> => {
@@ -89,15 +92,32 @@ export function useApiKeys() {
     }
   }, []);
 
+  const testOpenApiKey = useCallback(async (key: string): Promise<boolean> => {
+    setValidation((v) => ({ ...v, openapi: { ...v.openapi, loading: true } }));
+
+    try {
+      const isValid = await openApiRealEstateService.testApiKey(key);
+      setValidation((v) => ({ ...v, openapi: { valid: isValid, loading: false } }));
+      return isValid;
+    } catch (error) {
+      setValidation((v) => ({
+        ...v,
+        openapi: { valid: false, loading: false, error: 'Errore verifica' }
+      }));
+      return false;
+    }
+  }, []);
+
   const testAllKeys = useCallback(async () => {
     const results = await Promise.all([
       apiKeys.gmaps ? testGmapsKey(apiKeys.gmaps) : Promise.resolve(false),
       apiKeys.gemini ? testGeminiKey(apiKeys.gemini) : Promise.resolve(false),
       apiKeys.botId ? testBotId(apiKeys.botId) : Promise.resolve(false),
-      apiKeys.openrouter ? testOpenRouterKey(apiKeys.openrouter) : Promise.resolve(false)
+      apiKeys.openrouter ? testOpenRouterKey(apiKeys.openrouter) : Promise.resolve(false),
+      apiKeys.openapi ? testOpenApiKey(apiKeys.openapi) : Promise.resolve(false)
     ]);
 
-    const allValid = results.slice(0, 3).every(Boolean); // openrouter è opzionale
+    const allValid = results.slice(0, 3).every(Boolean); // openrouter e openapi sono opzionali
 
     if (allValid) {
       addToast({ message: 'Tutte le API Key sono configurate e valide!', type: 'success' });
@@ -109,9 +129,10 @@ export function useApiKeys() {
       gmaps: results[0],
       gemini: results[1],
       botId: results[2],
-      openrouter: results[3]
+      openrouter: results[3],
+      openapi: results[4]
     };
-  }, [apiKeys, testGmapsKey, testGeminiKey, testBotId, testOpenRouterKey, addToast]);
+  }, [apiKeys, testGmapsKey, testGeminiKey, testBotId, testOpenRouterKey, testOpenApiKey, addToast]);
 
   const saveAndTestKey = useCallback(async (
     keyName: keyof typeof apiKeys,
@@ -133,6 +154,9 @@ export function useApiKeys() {
       case 'openrouter':
         isValid = await testOpenRouterKey(value);
         break;
+      case 'openapi':
+        isValid = await testOpenApiKey(value);
+        break;
     }
 
     if (isValid) {
@@ -142,7 +166,7 @@ export function useApiKeys() {
     }
 
     return isValid;
-  }, [setApiKey, testGmapsKey, testGeminiKey, testBotId, testOpenRouterKey, addToast]);
+  }, [setApiKey, testGmapsKey, testGeminiKey, testBotId, testOpenRouterKey, testOpenApiKey, addToast]);
 
   return {
     apiKeys,
@@ -152,6 +176,7 @@ export function useApiKeys() {
     testGeminiKey,
     testBotId,
     testOpenRouterKey,
+    testOpenApiKey,
     testAllKeys,
     saveAndTestKey
   };

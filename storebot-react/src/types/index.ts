@@ -5,6 +5,7 @@ export interface ApiKeys {
   botId: string | null;
   openrouter: string | null;
   openrouterModel: string | null;
+  openapi: string | null;  // OpenAPI.it Real Estate API
 }
 
 export interface ApiKeyStatus {
@@ -112,6 +113,53 @@ export interface FormapsChapter {
   analysis?: string;
 }
 
+// Real Estate Valuation (OpenAPI.it)
+export interface PropertyValuation {
+  address: string;
+  propertyType: number;
+  propertyTypeLabel: string;
+  transactionType: 'sale' | 'rent';
+  quotation: {
+    min: number;
+    med: number;
+    max: number;
+    currency: string;
+    unit: string;
+  };
+  estimatedValue?: {
+    min: number;
+    med: number;
+    max: number;
+  };
+  location?: {
+    region: string;
+    province: string;
+    municipality: string;
+    zone?: string;
+    microzone?: string;
+  };
+  marketDynamics?: {
+    trend?: string;
+    variationPercentage?: number;
+    period?: string;
+  };
+  demographics?: {
+    population?: number;
+    density?: number;
+    avgAge?: number;
+    avgIncome?: number;
+    employmentRate?: number;
+  };
+  seismicRisk?: {
+    zone?: string;
+    level?: string;
+    description?: string;
+  };
+  lastUpdate?: string;
+  source?: string;
+  fetchedAt: Date;
+}
+
 // Report
 export interface FullReport {
   id?: string;
@@ -122,6 +170,7 @@ export interface FullReport {
   marketingDescription?: string;
   brandMatches?: BrandMatch[];
   formapsChapters?: FormapsChapter[];
+  propertyValuation?: PropertyValuation;  // Quotazione immobiliare
   aiSummary?: string;
 }
 

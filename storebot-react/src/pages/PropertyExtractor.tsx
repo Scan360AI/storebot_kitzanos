@@ -5,15 +5,25 @@ import {
   FileJson,
   PenLine,
   Save,
-  Trash2
+  Trash2,
+  Home,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  AlertTriangle,
+  Users,
+  MapPin,
+  Loader2
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
 import { Textarea } from '../components/ui/Textarea';
+import { Select } from '../components/ui/Select';
 import { useAppStore } from '../store/appStore';
 import { useGemini } from '../hooks/useGemini';
-import type { PropertyData } from '../types';
+import { openApiRealEstateService, PROPERTY_TYPES, PROPERTY_TYPE_LABELS, type TransactionType } from '../services/openapi-realestate.service';
+import type { PropertyData, PropertyValuation } from '../types';
 
 // Campi del form immobile
 const PROPERTY_FIELDS = [
@@ -40,13 +50,18 @@ const PROPERTY_FIELDS = [
 type InputMode = 'pdf' | 'json' | 'manual';
 
 export function PropertyExtractor() {
-  const { propertyData, setPropertyData, currentAddress, addToast } = useAppStore();
+  const { propertyData, setPropertyData, currentAddress, addToast, apiKeys, propertyValuation, setPropertyValuation } = useAppStore();
   const { generate, isGenerating } = useGemini({ temperature: 0.2 });
 
   const [mode, setMode] = useState<InputMode>('manual');
   const [formData, setFormData] = useState<PropertyData>(propertyData || { indirizzo: currentAddress });
   const [jsonInput, setJsonInput] = useState('');
   const [pdfText, setPdfText] = useState('');
+
+  // Valuation states
+  const [valuationPropertyType, setValuationPropertyType] = useState<number>(PROPERTY_TYPES.NEGOZI);
+  const [valuationTransactionType, setValuationTransactionType] = useState<TransactionType>('rent');
+  const [isLoadingValuation, setIsLoadingValuation] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -168,6 +183,93 @@ ${pdfText.substring(0, 8000)}`;
     setFormData({ indirizzo: currentAddress });
     setPropertyData(null);
     addToast({ message: 'Dati resettati', type: 'info' });
+  };
+
+  // Fetch property valuation
+  const handleFetchValuation = async () => {
+    const address = formData.indirizzo || currentAddress;
+    if (!address) {
+      addToast({ message: 'Inserisci un indirizzo', type: 'warning' });
+      return;
+    }
+
+    if (!apiKeys.openapi) {
+      addToast({ message: 'Configura prima la API Key OpenAPI.it nelle Impostazioni', type: 'warning' });
+      return;
+    }
+
+    setIsLoadingValuation(true);
+    try {
+      const response = await openApiRealEstateService.getValuation(apiKeys.openapi, {
+        address,
+        propertyType: valuationPropertyType,
+        transactionType: valuationTransactionType
+      });
+
+      if (response.success && response.data) {
+        const surfaceArea = formData.superficie_mq || 100;
+        const estimatedValue = openApiRealEstateService.calculatePropertyValue(
+          response.data.quotation,
+          surfaceArea
+        );
+
+        const valuation: PropertyValuation = {
+          address,
+          propertyType: valuationPropertyType,
+          propertyTypeLabel: PROPERTY_TYPE_LABELS[valuationPropertyType],
+          transactionType: valuationTransactionType,
+          quotation: response.data.quotation,
+          estimatedValue,
+          location: response.data.location ? {
+            region: response.data.location.region,
+            province: response.data.location.province,
+            municipality: response.data.location.municipality,
+            zone: response.data.location.zone,
+            microzone: response.data.location.microzone
+          } : undefined,
+          marketDynamics: response.data.market_dynamics ? {
+            trend: response.data.market_dynamics.trend,
+            variationPercentage: response.data.market_dynamics.variation_percentage,
+            period: response.data.market_dynamics.period
+          } : undefined,
+          demographics: response.data.demographics ? {
+            population: response.data.demographics.population,
+            density: response.data.demographics.density,
+            avgAge: response.data.demographics.avg_age,
+            avgIncome: response.data.demographics.avg_income,
+            employmentRate: response.data.demographics.employment_rate
+          } : undefined,
+          seismicRisk: response.data.seismic_risk ? {
+            zone: response.data.seismic_risk.zone,
+            level: response.data.seismic_risk.level,
+            description: response.data.seismic_risk.description
+          } : undefined,
+          lastUpdate: response.data.last_update,
+          source: response.data.source,
+          fetchedAt: new Date()
+        };
+
+        setPropertyValuation(valuation);
+        addToast({ message: 'Quotazione immobiliare ottenuta', type: 'success' });
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Errore durante il recupero della quotazione';
+      addToast({ message, type: 'error' });
+    } finally {
+      setIsLoadingValuation(false);
+    }
+  };
+
+  // Get trend icon
+  const getTrendIcon = (trend?: string) => {
+    switch (trend?.toLowerCase()) {
+      case 'up':
+        return <TrendingUp className="text-green-500" size={16} />;
+      case 'down':
+        return <TrendingDown className="text-red-500" size={16} />;
+      default:
+        return <Minus className="text-gray-400" size={16} />;
+    }
   };
 
   return (
@@ -321,6 +423,227 @@ ${pdfText.substring(0, 8000)}`;
               Reset
             </Button>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Quotazioni Immobiliari */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle icon={<Home className="text-emerald-500" size={20} />}>
+            Quotazioni Immobiliari OMI
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <Select
+              label="Tipo Immobile"
+              value={String(valuationPropertyType)}
+              onChange={(e) => setValuationPropertyType(Number(e.target.value))}
+              options={Object.entries(PROPERTY_TYPE_LABELS).map(([value, label]) => ({
+                value,
+                label
+              }))}
+            />
+            <Select
+              label="Tipo Transazione"
+              value={valuationTransactionType}
+              onChange={(e) => setValuationTransactionType(e.target.value as TransactionType)}
+              options={[
+                { value: 'rent', label: 'Affitto (€/mq/mese)' },
+                { value: 'sale', label: 'Vendita (€/mq)' }
+              ]}
+            />
+            <div className="flex items-end">
+              <Button
+                onClick={handleFetchValuation}
+                loading={isLoadingValuation}
+                disabled={!formData.indirizzo && !currentAddress}
+                className="w-full"
+              >
+                {isLoadingValuation ? 'Caricamento...' : 'Ottieni Quotazione'}
+              </Button>
+            </div>
+          </div>
+
+          {!apiKeys.openapi && (
+            <p className="text-sm text-amber-600 bg-amber-50 p-3 rounded-lg">
+              ⚠️ Configura la API Key OpenAPI.it nelle Impostazioni per utilizzare questa funzione
+            </p>
+          )}
+
+          {/* Valuation Results */}
+          {propertyValuation && (
+            <div className="mt-6 space-y-4">
+              {/* Location Info */}
+              {propertyValuation.location && (
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h4 className="font-medium flex items-center gap-2 mb-2">
+                    <MapPin size={16} className="text-blue-500" />
+                    Localizzazione
+                  </h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                    <div>
+                      <span className="text-gray-500">Regione:</span>{' '}
+                      <span className="font-medium">{propertyValuation.location.region}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Provincia:</span>{' '}
+                      <span className="font-medium">{propertyValuation.location.province}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Comune:</span>{' '}
+                      <span className="font-medium">{propertyValuation.location.municipality}</span>
+                    </div>
+                    {propertyValuation.location.zone && (
+                      <div>
+                        <span className="text-gray-500">Zona:</span>{' '}
+                        <span className="font-medium">{propertyValuation.location.zone}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Quotation Values */}
+              <div className="bg-emerald-50 p-4 rounded-lg">
+                <h4 className="font-medium text-emerald-800 mb-3">
+                  Quotazione {propertyValuation.propertyTypeLabel} - {propertyValuation.transactionType === 'rent' ? 'Affitto' : 'Vendita'}
+                </h4>
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div className="bg-white p-3 rounded-lg">
+                    <p className="text-xs text-gray-500 mb-1">Minimo</p>
+                    <p className="text-lg font-bold text-gray-700">
+                      {openApiRealEstateService.formatCurrency(propertyValuation.quotation.min)}/mq
+                    </p>
+                  </div>
+                  <div className="bg-white p-3 rounded-lg border-2 border-emerald-300">
+                    <p className="text-xs text-gray-500 mb-1">Medio</p>
+                    <p className="text-xl font-bold text-emerald-600">
+                      {openApiRealEstateService.formatCurrency(propertyValuation.quotation.med)}/mq
+                    </p>
+                  </div>
+                  <div className="bg-white p-3 rounded-lg">
+                    <p className="text-xs text-gray-500 mb-1">Massimo</p>
+                    <p className="text-lg font-bold text-gray-700">
+                      {openApiRealEstateService.formatCurrency(propertyValuation.quotation.max)}/mq
+                    </p>
+                  </div>
+                </div>
+
+                {/* Estimated Value */}
+                {propertyValuation.estimatedValue && formData.superficie_mq && (
+                  <div className="mt-4 pt-4 border-t border-emerald-200">
+                    <p className="text-sm text-emerald-700 mb-2">
+                      Valore stimato per {formData.superficie_mq} mq:
+                    </p>
+                    <div className="grid grid-cols-3 gap-4 text-center text-sm">
+                      <div>
+                        <span className="text-gray-500">Min: </span>
+                        <span className="font-bold">{openApiRealEstateService.formatCurrency(propertyValuation.estimatedValue.min)}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Med: </span>
+                        <span className="font-bold text-emerald-600">{openApiRealEstateService.formatCurrency(propertyValuation.estimatedValue.med)}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Max: </span>
+                        <span className="font-bold">{openApiRealEstateService.formatCurrency(propertyValuation.estimatedValue.max)}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Market Dynamics */}
+              {propertyValuation.marketDynamics && (
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <h4 className="font-medium flex items-center gap-2 mb-2 text-blue-800">
+                    {getTrendIcon(propertyValuation.marketDynamics.trend)}
+                    Dinamiche di Mercato
+                  </h4>
+                  <div className="text-sm">
+                    {propertyValuation.marketDynamics.variationPercentage !== undefined && (
+                      <p>
+                        Variazione: <span className={`font-medium ${(propertyValuation.marketDynamics.variationPercentage || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {propertyValuation.marketDynamics.variationPercentage > 0 ? '+' : ''}{propertyValuation.marketDynamics.variationPercentage}%
+                        </span>
+                        {propertyValuation.marketDynamics.period && ` (${propertyValuation.marketDynamics.period})`}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Demographics */}
+              {propertyValuation.demographics && (
+                <div className="bg-purple-50 p-4 rounded-lg">
+                  <h4 className="font-medium flex items-center gap-2 mb-2 text-purple-800">
+                    <Users size={16} />
+                    Dati Demografici
+                  </h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                    {propertyValuation.demographics.population && (
+                      <div>
+                        <span className="text-gray-500">Popolazione:</span>{' '}
+                        <span className="font-medium">{propertyValuation.demographics.population.toLocaleString('it-IT')}</span>
+                      </div>
+                    )}
+                    {propertyValuation.demographics.density && (
+                      <div>
+                        <span className="text-gray-500">Densità:</span>{' '}
+                        <span className="font-medium">{propertyValuation.demographics.density}/km²</span>
+                      </div>
+                    )}
+                    {propertyValuation.demographics.avgAge && (
+                      <div>
+                        <span className="text-gray-500">Età media:</span>{' '}
+                        <span className="font-medium">{propertyValuation.demographics.avgAge} anni</span>
+                      </div>
+                    )}
+                    {propertyValuation.demographics.avgIncome && (
+                      <div>
+                        <span className="text-gray-500">Reddito medio:</span>{' '}
+                        <span className="font-medium">{openApiRealEstateService.formatCurrency(propertyValuation.demographics.avgIncome)}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Seismic Risk */}
+              {propertyValuation.seismicRisk && (
+                <div className="bg-amber-50 p-4 rounded-lg">
+                  <h4 className="font-medium flex items-center gap-2 mb-2 text-amber-800">
+                    <AlertTriangle size={16} />
+                    Rischio Sismico
+                  </h4>
+                  <div className="text-sm">
+                    {propertyValuation.seismicRisk.zone && (
+                      <p>
+                        <span className="text-gray-500">Zona:</span>{' '}
+                        <span className="font-medium">{propertyValuation.seismicRisk.zone}</span>
+                      </p>
+                    )}
+                    {propertyValuation.seismicRisk.level && (
+                      <p>
+                        <span className="text-gray-500">Livello:</span>{' '}
+                        <span className="font-medium">{propertyValuation.seismicRisk.level}</span>
+                      </p>
+                    )}
+                    {propertyValuation.seismicRisk.description && (
+                      <p className="text-gray-600 mt-1">{propertyValuation.seismicRisk.description}</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Source & Date */}
+              <p className="text-xs text-gray-400 text-right">
+                {propertyValuation.source && `Fonte: ${propertyValuation.source} | `}
+                Aggiornamento: {new Date(propertyValuation.fetchedAt).toLocaleDateString('it-IT')}
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 

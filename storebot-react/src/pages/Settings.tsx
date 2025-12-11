@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Map, Sparkles, Bot, Zap, ShieldCheck, Loader2 } from 'lucide-react';
+import { Map, Sparkles, Bot, Zap, ShieldCheck, Loader2, Home } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -16,7 +16,8 @@ export function Settings() {
   const [geminiKey, setGeminiKey] = useState(apiKeys.gemini || '');
   const [botId, setBotId] = useState(apiKeys.botId || '');
   const [openrouterKey, setOpenrouterKey] = useState(apiKeys.openrouter || '');
-  const [selectedModel, setSelectedModel] = useState(apiKeys.openrouterModel || 'google/gemini-2.0-flash-001');
+  const [selectedModel, setSelectedModel] = useState(apiKeys.openrouterModel || 'google/gemini-2.5-flash');
+  const [openapiKey, setOpenapiKey] = useState(apiKeys.openapi || '');
 
   const [testingAll, setTestingAll] = useState(false);
 
@@ -25,13 +26,15 @@ export function Settings() {
     setGeminiKey(apiKeys.gemini || '');
     setBotId(apiKeys.botId || '');
     setOpenrouterKey(apiKeys.openrouter || '');
-    setSelectedModel(apiKeys.openrouterModel || 'google/gemini-2.0-flash-001');
+    setSelectedModel(apiKeys.openrouterModel || 'google/gemini-2.5-flash');
+    setOpenapiKey(apiKeys.openapi || '');
   }, [apiKeys]);
 
   const handleSaveGmaps = () => saveAndTestKey('gmaps', gmapsKey);
   const handleSaveGemini = () => saveAndTestKey('gemini', geminiKey);
   const handleSaveBotId = () => saveAndTestKey('botId', botId);
   const handleSaveOpenrouter = () => saveAndTestKey('openrouter', openrouterKey);
+  const handleSaveOpenapi = () => saveAndTestKey('openapi', openapiKey);
 
   const handleModelChange = (model: string) => {
     setSelectedModel(model);
@@ -213,7 +216,7 @@ export function Settings() {
       </Card>
 
       {/* OpenRouter API (Opzionale) */}
-      <Card className="mb-6">
+      <Card className="mb-4">
         <CardHeader>
           <CardTitle icon={<Zap className="text-amber-500" size={20} />}>
             OpenRouter API Key
@@ -273,6 +276,52 @@ export function Settings() {
             >
               Ottieni API Key →
             </a>
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* OpenAPI.it Real Estate API (Opzionale) */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle icon={<Home className="text-emerald-500" size={20} />}>
+            OpenAPI.it Quotazioni Immobiliari
+            <span className="ml-2 text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded">
+              OPZIONALE
+            </span>
+          </CardTitle>
+          <CardDescription>
+            Per quotazioni immobiliari OMI, dati demografici e rischio sismico
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <Input
+                type="password"
+                value={openapiKey}
+                onChange={(e) => setOpenapiKey(e.target.value)}
+                placeholder="La tua API Key OpenAPI.it"
+              />
+            </div>
+            <Button
+              onClick={handleSaveOpenapi}
+              loading={validation.openapi.loading}
+            >
+              Salva
+            </Button>
+          </div>
+          <p className="text-sm text-gray-500 mt-2">
+            <a
+              href="https://console.openapi.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary-500 hover:underline"
+            >
+              Registrati su console.openapi.com →
+            </a>
+          </p>
+          <p className="text-xs text-gray-400 mt-1">
+            Costo: €0.05-€3.00 per chiamata (in base al volume)
           </p>
         </CardContent>
       </Card>

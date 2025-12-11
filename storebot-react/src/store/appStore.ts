@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { PropertyData, ContextAnalysis, BrandMatch, FormapsChapter, Toast } from '../types';
+import type { PropertyData, ContextAnalysis, BrandMatch, FormapsChapter, Toast, PropertyValuation } from '../types';
 
 interface AppState {
   // API Keys
@@ -10,6 +10,7 @@ interface AppState {
     botId: string | null;
     openrouter: string | null;
     openrouterModel: string | null;
+    openapi: string | null;
   };
 
   // Current Address
@@ -31,6 +32,9 @@ interface AppState {
   // Formaps
   formapsChapters: FormapsChapter[];
 
+  // Property Valuation
+  propertyValuation: PropertyValuation | null;
+
   // Loading State
   isLoading: boolean;
   loadingText: string;
@@ -49,6 +53,7 @@ interface AppState {
   addFormapsChapter: (chapter: FormapsChapter) => void;
   updateFormapsChapter: (id: string, updates: Partial<FormapsChapter>) => void;
   removeFormapsChapter: (id: string) => void;
+  setPropertyValuation: (valuation: PropertyValuation | null) => void;
   setLoading: (loading: boolean, text?: string) => void;
   addToast: (toast: Omit<Toast, 'id'>) => void;
   removeToast: (id: string) => void;
@@ -63,7 +68,8 @@ const loadApiKeysFromStorage = () => ({
   gemini: localStorage.getItem(API_KEYS_PREFIX + 'gemini'),
   botId: localStorage.getItem(API_KEYS_PREFIX + 'botId'),
   openrouter: localStorage.getItem(API_KEYS_PREFIX + 'openrouter'),
-  openrouterModel: localStorage.getItem(API_KEYS_PREFIX + 'openrouterModel')
+  openrouterModel: localStorage.getItem(API_KEYS_PREFIX + 'openrouterModel'),
+  openapi: localStorage.getItem(API_KEYS_PREFIX + 'openapi')
 });
 
 export const useAppStore = create<AppState>()(
@@ -78,6 +84,7 @@ export const useAppStore = create<AppState>()(
       marketingDescription: null,
       brandMatches: [],
       formapsChapters: [],
+      propertyValuation: null,
       isLoading: false,
       loadingText: 'Caricamento...',
       toasts: [],
@@ -125,6 +132,8 @@ export const useAppStore = create<AppState>()(
         formapsChapters: state.formapsChapters.filter((ch) => ch.id !== id)
       })),
 
+      setPropertyValuation: (valuation) => set({ propertyValuation: valuation }),
+
       setLoading: (loading, text = 'Caricamento...') => set({
         isLoading: loading,
         loadingText: text
@@ -155,7 +164,8 @@ export const useAppStore = create<AppState>()(
           contextAnalysis: null,
           marketingDescription: null,
           brandMatches: [],
-          formapsChapters: []
+          formapsChapters: [],
+          propertyValuation: null
         });
       }
     }),
@@ -166,7 +176,8 @@ export const useAppStore = create<AppState>()(
         contextAnalysis: state.contextAnalysis,
         marketingDescription: state.marketingDescription,
         brandMatches: state.brandMatches,
-        formapsChapters: state.formapsChapters
+        formapsChapters: state.formapsChapters,
+        propertyValuation: state.propertyValuation
       })
     }
   )
