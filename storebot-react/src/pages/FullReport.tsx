@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   FileCheck2,
   Download,
@@ -9,13 +9,21 @@ import {
   GitCompareArrows,
   Map,
   Save,
-  RefreshCw
+  RefreshCw,
+  Trash2,
+  FolderOpen,
+  Clock
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
 import { useAppStore } from '../store/appStore';
 import { useGemini } from '../hooks/useGemini';
-import { supabaseService } from '../services/supabase.service';
+import type { FullReport as FullReportType } from '../types';
+
+const STORAGE_KEY = 'storebot_saved_reports';
+
+// Genera ID univoco
+const generateId = () => `report_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
 export function FullReport() {
   const {
@@ -25,6 +33,11 @@ export function FullReport() {
     marketingDescription,
     brandMatches,
     formapsChapters,
+    setPropertyData,
+    setContextAnalysis,
+    setMarketingDescription,
+    setBrandMatches,
+    setFormapsChapters,
     addToast
   } = useAppStore();
 
@@ -32,6 +45,27 @@ export function FullReport() {
 
   const [aiSummary, setAiSummary] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [savedReports, setSavedReports] = useState<FullReportType[]>([]);
+  const [showSavedReports, setShowSavedReports] = useState(false);
+
+  // Carica report salvati da localStorage
+  useEffect(() => {
+    loadSavedReports();
+  }, []);
+
+  const loadSavedReports = () => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const reports = JSON.parse(saved) as FullReportType[];
+        // Ordina per data decrescente
+        reports.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        setSavedReports(reports);
+      }
+    } catch (error) {
+      console.error('Errore caricamento report:', error);
+    }
+  };
 
   // Genera sommario AI
   const handleGenerateSummary = async () => {
@@ -89,31 +123,66 @@ Scrivi in italiano professionale, in formato markdown.`;
     }
   };
 
-  // Salva su Supabase
-  const handleSaveToCloud = async () => {
+  // Salva su localStorage
+  const handleSaveToLocal = async () => {
     setIsSaving(true);
 
     try {
-      const result = await supabaseService.saveReport({
+      const newReport: FullReportType = {
+        id: generateId(),
         address: currentAddress || propertyData?.indirizzo || 'Sconosciuto',
-        property_data: propertyData || undefined,
-        context_analysis: contextAnalysis || undefined,
-        marketing_description: marketingDescription || undefined,
-        brand_matches: brandMatches.length > 0 ? brandMatches : undefined,
-        formaps_chapters: formapsChapters.length > 0 ? formapsChapters : undefined,
-        ai_summary: aiSummary || undefined
-      });
+        createdAt: new Date(),
+        propertyData: propertyData || undefined,
+        contextAnalysis: contextAnalysis || undefined,
+        marketingDescription: marketingDescription || undefined,
+        brandMatches: brandMatches.length > 0 ? brandMatches : undefined,
+        formapsChapters: formapsChapters.length > 0 ? formapsChapters : undefined,
+        aiSummary: aiSummary || undefined
+      };
 
-      if (result) {
-        addToast({ message: 'Report salvato nel cloud', type: 'success' });
-      } else {
-        throw new Error('Errore salvataggio');
-      }
+      // Carica report esistenti
+      const existing = localStorage.getItem(STORAGE_KEY);
+      const reports: FullReportType[] = existing ? JSON.parse(existing) : [];
+
+      // Aggiungi nuovo report
+      reports.unshift(newReport);
+
+      // Limita a 50 report massimo
+      const limitedReports = reports.slice(0, 50);
+
+      // Salva
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(limitedReports));
+
+      setSavedReports(limitedReports);
+      addToast({ message: 'Report salvato localmente', type: 'success' });
     } catch (error) {
       addToast({ message: 'Errore durante il salvataggio', type: 'error' });
     }
 
     setIsSaving(false);
+  };
+
+  // Carica un report salvato
+  const handleLoadReport = (report: FullReportType) => {
+    if (report.propertyData) setPropertyData(report.propertyData);
+    if (report.contextAnalysis) setContextAnalysis(report.contextAnalysis);
+    if (report.marketingDescription) setMarketingDescription(report.marketingDescription);
+    if (report.brandMatches) setBrandMatches(report.brandMatches);
+    if (report.formapsChapters) setFormapsChapters(report.formapsChapters);
+    if (report.aiSummary) setAiSummary(report.aiSummary);
+
+    setShowSavedReports(false);
+    addToast({ message: `Report "${report.address}" caricato`, type: 'success' });
+  };
+
+  // Elimina un report
+  const handleDeleteReport = (reportId: string) => {
+    if (!confirm('Eliminare questo report?')) return;
+
+    const updated = savedReports.filter(r => r.id !== reportId);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    setSavedReports(updated);
+    addToast({ message: 'Report eliminato', type: 'success' });
   };
 
   // Esporta TXT
@@ -152,7 +221,7 @@ Scrivi in italiano professionale, in formato markdown.`;
       sections.push('\n## BRAND COMPATIBILI\n');
       brandMatches.forEach((m) => {
         sections.push(`- ${m.brand.name} (Score: ${m.score}/100)`);
-        m.reasons.forEach((r) => sections.push(`  • ${r}`));
+        m.reasons.forEach((r) => sections.push(`  - ${r}`));
       });
     }
 
@@ -170,6 +239,28 @@ Scrivi in italiano professionale, in formato markdown.`;
     const link = document.createElement('a');
     link.href = url;
     link.download = `report_${(currentAddress || 'immobile').replace(/\s+/g, '_')}.txt`;
+    link.click();
+  };
+
+  // Esporta JSON
+  const handleExportJSON = () => {
+    const report: FullReportType = {
+      id: generateId(),
+      address: currentAddress || propertyData?.indirizzo || 'Sconosciuto',
+      createdAt: new Date(),
+      propertyData: propertyData || undefined,
+      contextAnalysis: contextAnalysis || undefined,
+      marketingDescription: marketingDescription || undefined,
+      brandMatches: brandMatches.length > 0 ? brandMatches : undefined,
+      formapsChapters: formapsChapters.length > 0 ? formapsChapters : undefined,
+      aiSummary: aiSummary || undefined
+    };
+
+    const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `report_${(currentAddress || 'immobile').replace(/\s+/g, '_')}.json`;
     link.click();
   };
 
@@ -191,7 +282,7 @@ Scrivi in italiano professionale, in formato markdown.`;
           Report Consolidato
         </h1>
         <p className="text-gray-500 mt-2">
-          Visualizza ed esporta l'analisi completa
+          Visualizza, salva ed esporta l'analisi completa
         </p>
       </div>
 
@@ -325,15 +416,66 @@ Scrivi in italiano professionale, in formato markdown.`;
         </CardContent>
       </Card>
 
+      {/* Saved Reports */}
+      {savedReports.length > 0 && (
+        <Card className="mb-6">
+          <CardHeader>
+            <div
+              className="cursor-pointer flex items-center"
+              onClick={() => setShowSavedReports(!showSavedReports)}
+            >
+              <CardTitle icon={<FolderOpen className="text-blue-500" size={20} />}>
+                Report Salvati ({savedReports.length})
+              </CardTitle>
+            </div>
+          </CardHeader>
+          {showSavedReports && (
+            <CardContent>
+              <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                {savedReports.map((report) => (
+                  <div
+                    key={report.id}
+                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-gray-900 truncate">{report.address}</p>
+                      <p className="text-sm text-gray-500 flex items-center gap-1">
+                        <Clock size={12} />
+                        {new Date(report.createdAt).toLocaleString('it-IT')}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => handleLoadReport(report)}
+                      >
+                        Carica
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => handleDeleteReport(report.id!)}
+                        icon={<Trash2 size={14} />}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          )}
+        </Card>
+      )}
+
       {/* Actions */}
       <div className="flex flex-wrap gap-3 justify-center">
         <Button
-          onClick={handleSaveToCloud}
+          onClick={handleSaveToLocal}
           loading={isSaving}
           icon={<Save size={18} />}
           disabled={completedSections === 0}
         >
-          Salva nel Cloud
+          Salva Report
         </Button>
         <Button
           variant="secondary"
@@ -342,6 +484,14 @@ Scrivi in italiano professionale, in formato markdown.`;
           disabled={completedSections === 0}
         >
           Esporta TXT
+        </Button>
+        <Button
+          variant="secondary"
+          onClick={handleExportJSON}
+          icon={<Download size={18} />}
+          disabled={completedSections === 0}
+        >
+          Esporta JSON
         </Button>
       </div>
     </div>
