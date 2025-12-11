@@ -41,9 +41,30 @@ export interface PropertyData {
   [key: string]: string | number | boolean | undefined;
 }
 
+// Brand Classification
+export interface BrandClassification {
+  type: 'brand' | 'local';
+  assignedMacroCategoryKey: string;
+  brandKeyFromConfig: string | null;
+  brandDisplayName: string | null;
+  brandConfigCategory: string | null;
+  brandConfigSubCategory: string | null;
+  matchMethod: string | null;
+  similarityScore: number | null;
+  isUserConfirmed: boolean;
+}
+
+export interface BrandInfo {
+  name: string;
+  category: string;
+  subcategory?: string;
+  description?: string;
+}
+
 // Context Analysis
 export interface POI {
   name: string;
+  originalName?: string;
   types: string[];
   category: string;
   distance: number;
@@ -52,15 +73,11 @@ export interface POI {
   address?: string;
   rating?: number;
   user_ratings_total?: number;
+  googlePlaceId?: string;
+  classification?: BrandClassification;
+  // Legacy compatibility
   isBrand?: boolean;
   brandInfo?: BrandInfo;
-}
-
-export interface BrandInfo {
-  name: string;
-  category: string;
-  subcategory?: string;
-  description?: string;
 }
 
 export interface ContextAnalysis {
@@ -117,8 +134,8 @@ export interface OpenRouterModel {
 }
 
 export const OPENROUTER_MODELS: OpenRouterModel[] = [
-  { id: 'google/gemini-2.0-flash-001', name: 'Gemini 2.0 Flash', description: 'Veloce ed economico', pricePerToken: '~$0.00015/1K' },
-  { id: 'google/gemini-pro', name: 'Gemini Pro', description: 'Bilanciato', pricePerToken: '~$0.00025/1K' },
+  { id: 'google/gemini-2.5-flash', name: 'Gemini 2.5 Flash', description: 'Veloce ed economico (Dicembre 2025)', pricePerToken: '~$0.00015/1K' },
+  { id: 'google/gemini-2.5-pro', name: 'Gemini 2.5 Pro', description: 'Bilanciato', pricePerToken: '~$0.00025/1K' },
   { id: 'anthropic/claude-3.5-sonnet', name: 'Claude 3.5 Sonnet', description: 'Premium', pricePerToken: '~$0.003/1K' },
   { id: 'openai/gpt-4o', name: 'GPT-4o', description: 'Premium', pricePerToken: '~$0.005/1K' },
   { id: 'meta-llama/llama-3.2-3b-instruct', name: 'Llama 3.2', description: 'Economico', pricePerToken: '~$0.00006/1K' },

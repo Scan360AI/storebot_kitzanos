@@ -1,6 +1,6 @@
-// Servizio Gemini API - Aggiornato a gemini-2.0-flash-001
+// Servizio Gemini API - Aggiornato a gemini-2.5-flash (Dicembre 2025)
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
-const DEFAULT_MODEL = 'gemini-2.0-flash-001';
+const DEFAULT_MODEL = 'gemini-2.5-flash';
 
 export interface GeminiImagePart {
   inline_data: {

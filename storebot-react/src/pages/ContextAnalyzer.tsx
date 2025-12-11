@@ -10,7 +10,12 @@ import {
   Store,
   ChevronDown,
   ChevronUp,
-  Sparkles
+  Sparkles,
+  CheckCircle,
+  HelpCircle,
+  Check,
+  X,
+  Trash2
 } from 'lucide-react';
 
 // Dichiarazione per Google Maps API (caricato dinamicamente)
@@ -21,11 +26,14 @@ import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card'
 import { Select } from '../components/ui/Select';
 import { useAppStore } from '../store/appStore';
 import { useGemini } from '../hooks/useGemini';
-import type { POI, ContextAnalysis } from '../types';
+import { brandService } from '../services/brand.service';
+import type { POI, ContextAnalysis, BrandClassification } from '../types';
 
 // Categorie POI
 const POI_CATEGORIES = [
   { value: 'all', label: 'Tutte le categorie' },
+  { value: 'brand', label: 'Solo Brand' },
+  { value: 'local', label: 'Solo Locali' },
   { value: 'restaurant', label: 'Ristoranti' },
   { value: 'cafe', label: 'Bar & Caffè' },
   { value: 'store', label: 'Negozi' },
@@ -87,7 +95,7 @@ export function ContextAnalyzer() {
 
     const geocoder = new google.maps.Geocoder();
     return new Promise((resolve) => {
-      geocoder.geocode({ address: addr }, (results, status) => {
+      geocoder.geocode({ address: addr }, (results: any, status: any) => {
         if (status === 'OK' && results?.[0]) {
           const location = results[0].geometry.location;
           resolve({ lat: location.lat(), lng: location.lng() });
@@ -98,6 +106,30 @@ export function ContextAnalyzer() {
       });
     });
   }, [apiKeys.gmaps, addToast]);
+
+  // Classifica POI con brand matching
+  const classifyPOI = useCallback((place: any): POI => {
+    const classification = brandService.classifyPlace(
+      place.name || 'Sconosciuto',
+      place.types || [],
+      undefined
+    );
+
+    return {
+      name: place.name || 'Sconosciuto',
+      originalName: place.name,
+      types: place.types || [],
+      category: place.types?.[0] || 'unknown',
+      distance: 0,
+      lat: place.geometry?.location?.lat() || 0,
+      lng: place.geometry?.location?.lng() || 0,
+      address: place.vicinity,
+      rating: place.rating,
+      user_ratings_total: place.user_ratings_total,
+      googlePlaceId: place.place_id,
+      classification
+    };
+  }, []);
 
   // Funzione per cercare POI
   const searchNearbyPOIs = useCallback(async (coords: { lat: number; lng: number }) => {
@@ -113,21 +145,14 @@ export function ContextAnalyzer() {
         {
           location: new google.maps.LatLng(coords.lat, coords.lng),
           radius: searchRadius,
-          type: selectedCategory === 'all' ? undefined : selectedCategory
+          type: selectedCategory === 'all' || selectedCategory === 'brand' || selectedCategory === 'local'
+            ? undefined
+            : selectedCategory
         },
-        (results, status) => {
+        (results: any, status: any) => {
           if (status === google.maps.places.PlacesServiceStatus.OK && results) {
-            const poiList: POI[] = results.map((place) => ({
-              name: place.name || 'Sconosciuto',
-              types: place.types || [],
-              category: place.types?.[0] || 'unknown',
-              distance: 0, // Calcolare dopo
-              lat: place.geometry?.location?.lat() || 0,
-              lng: place.geometry?.location?.lng() || 0,
-              address: place.vicinity,
-              rating: place.rating,
-              user_ratings_total: place.user_ratings_total
-            }));
+            // Classifica ogni POI
+            const poiList: POI[] = results.map((place: any) => classifyPOI(place));
 
             // Calcola distanze
             poiList.forEach((poi) => {
@@ -144,8 +169,14 @@ export function ContextAnalyzer() {
               poi.distance = Math.round(R * c);
             });
 
-            // Ordina per distanza
-            poiList.sort((a, b) => a.distance - b.distance);
+            // Ordina: brand prima, poi per distanza
+            poiList.sort((a, b) => {
+              const aIsBrand = a.classification?.type === 'brand';
+              const bIsBrand = b.classification?.type === 'brand';
+              if (aIsBrand && !bIsBrand) return -1;
+              if (!aIsBrand && bIsBrand) return 1;
+              return a.distance - b.distance;
+            });
 
             resolve(poiList);
           } else {
@@ -154,7 +185,7 @@ export function ContextAnalyzer() {
         }
       );
     });
-  }, [searchRadius, selectedCategory, addToast]);
+  }, [searchRadius, selectedCategory, classifyPOI, addToast]);
 
   // Cerca POI
   const handleSearch = async () => {
@@ -177,6 +208,10 @@ export function ContextAnalyzer() {
       const foundPois = await searchNearbyPOIs(coords);
       setPois(foundPois);
 
+      // Conta brand
+      const brandCount = foundPois.filter(p => p.classification?.type === 'brand').length;
+      const localCount = foundPois.length - brandCount;
+
       // Salva nel context
       const contextData: ContextAnalysis = {
         address: address.trim(),
@@ -186,12 +221,77 @@ export function ContextAnalyzer() {
       };
       setContextAnalysis(contextData);
 
-      addToast({ message: `Trovati ${foundPois.length} punti di interesse`, type: 'success' });
+      addToast({
+        message: `Trovati ${foundPois.length} POI (${brandCount} brand, ${localCount} locali)`,
+        type: 'success'
+      });
     } catch (error) {
       addToast({ message: 'Errore durante la ricerca', type: 'error' });
     }
 
     setIsSearching(false);
+  };
+
+  // Conferma brand association
+  const handleConfirmBrand = (poi: POI) => {
+    if (poi.classification?.brandKeyFromConfig && poi.originalName) {
+      brandService.confirmBrandAssociation(poi.originalName, poi.classification.brandKeyFromConfig);
+
+      // Aggiorna classificazione locale
+      setPois(prevPois => prevPois.map(p => {
+        if (p.googlePlaceId === poi.googlePlaceId && p.classification) {
+          return {
+            ...p,
+            classification: {
+              ...p.classification,
+              matchMethod: 'user_confirmed',
+              isUserConfirmed: true
+            }
+          };
+        }
+        return p;
+      }));
+
+      addToast({ message: 'Brand confermato', type: 'success' });
+    }
+  };
+
+  // Rimuovi brand association
+  const handleRemoveBrand = (poi: POI) => {
+    if (poi.classification?.brandKeyFromConfig && poi.originalName) {
+      brandService.removeBrandAssociation(poi.originalName, poi.classification.brandKeyFromConfig);
+
+      // Aggiorna classificazione locale
+      setPois(prevPois => prevPois.map(p => {
+        if (p.googlePlaceId === poi.googlePlaceId) {
+          return {
+            ...p,
+            classification: {
+              type: 'local',
+              assignedMacroCategoryKey: p.classification?.assignedMacroCategoryKey || 'Negozi e Shopping',
+              brandKeyFromConfig: null,
+              brandDisplayName: null,
+              brandConfigCategory: null,
+              brandConfigSubCategory: null,
+              matchMethod: null,
+              similarityScore: null,
+              isUserConfirmed: false
+            } as BrandClassification
+          };
+        }
+        return p;
+      }));
+
+      addToast({ message: 'Brand rimosso', type: 'success' });
+    }
+  };
+
+  // Pulisci liste
+  const handleClearLists = () => {
+    if (confirm('Vuoi pulire sia la whitelist che la blacklist?')) {
+      brandService.clearAllLists();
+      addToast({ message: 'Liste pulite. Esegui una nuova ricerca.', type: 'info' });
+    }
   };
 
   // Genera analisi AI
@@ -201,23 +301,36 @@ export function ContextAnalyzer() {
       return;
     }
 
-    const poiSummary = pois
-      .slice(0, 20)
+    // Separa brand da locali per analisi più dettagliata
+    const brands = pois.filter(p => p.classification?.type === 'brand');
+    const locals = pois.filter(p => p.classification?.type !== 'brand');
+
+    const brandsSummary = brands
+      .slice(0, 15)
+      .map((p) => `- ${p.classification?.brandDisplayName || p.name} (${p.classification?.brandConfigCategory}, ${p.distance}m)`)
+      .join('\n');
+
+    const localsSummary = locals
+      .slice(0, 10)
       .map((p) => `- ${p.name} (${p.category}, ${p.distance}m)`)
       .join('\n');
 
     const prompt = `Analizza il contesto commerciale di questo quartiere basandoti sui seguenti punti di interesse trovati nel raggio di ${searchRadius}m dall'indirizzo "${address}":
 
-${poiSummary}
+BRAND RICONOSCIUTI (${brands.length}):
+${brandsSummary || 'Nessun brand riconosciuto'}
+
+ATTIVITÀ LOCALI (${locals.length}):
+${localsSummary || 'Nessuna attività locale'}
 
 Fornisci:
-1. Una descrizione della vocazione commerciale del quartiere
-2. Il target demografico probabile
-3. Punti di forza per un'attività commerciale
-4. Potenziali criticità
-5. Tipologie di business consigliate
+1. PROFILO DEL QUARTIERE - Una descrizione della vocazione commerciale
+2. CARATTERE SOCIO-ECONOMICO - Target demografico probabile basato sui brand presenti
+3. PUNTI DI FORZA - Per un'attività commerciale
+4. POTENZIALI CRITICITÀ - Aspetti da considerare
+5. RACCOMANDAZIONI - Tipologie di business consigliate e sconsigliate
 
-Rispondi in italiano in formato markdown.`;
+Rispondi in italiano in formato markdown strutturato.`;
 
     const result = await generate(prompt);
     if (result) {
@@ -240,14 +353,18 @@ Rispondi in italiano in formato markdown.`;
   const handleExport = () => {
     if (pois.length === 0) return;
 
-    const headers = ['Nome', 'Categoria', 'Distanza (m)', 'Indirizzo', 'Rating', 'Recensioni'];
+    const headers = ['Nome', 'Tipo', 'Brand', 'Categoria Brand', 'Sottocategoria', 'Distanza (m)', 'Indirizzo', 'Rating', 'Recensioni', 'Confermato'];
     const rows = pois.map((p) => [
       p.name,
-      p.category,
+      p.classification?.type === 'brand' ? 'BRAND' : 'LOCALE',
+      p.classification?.brandDisplayName || '',
+      p.classification?.brandConfigCategory || '',
+      p.classification?.brandConfigSubCategory || '',
       p.distance,
       p.address || '',
       p.rating || '',
-      p.user_ratings_total || ''
+      p.user_ratings_total || '',
+      p.classification?.isUserConfirmed ? 'SI' : 'NO'
     ]);
 
     const csv = [headers, ...rows].map((row) => row.join(';')).join('\n');
@@ -263,9 +380,57 @@ Rispondi in italiano in formato markdown.`;
     return categoryIcons[category] || categoryIcons.default;
   };
 
+  // Filtra POI
   const filteredPois = selectedCategory === 'all'
     ? pois
+    : selectedCategory === 'brand'
+    ? pois.filter((p) => p.classification?.type === 'brand')
+    : selectedCategory === 'local'
+    ? pois.filter((p) => p.classification?.type !== 'brand')
     : pois.filter((p) => p.types.includes(selectedCategory));
+
+  // Statistiche
+  const totalBrands = pois.filter(p => p.classification?.type === 'brand').length;
+  const totalLocals = pois.length - totalBrands;
+
+  // Render brand indicator
+  const renderBrandIndicator = (poi: POI) => {
+    if (poi.classification?.type !== 'brand') return null;
+
+    const isPerfectMatch = poi.classification.matchMethod === 'exact_match' ||
+                          poi.classification.matchMethod === 'whitelist_match' ||
+                          poi.classification.isUserConfirmed;
+
+    if (isPerfectMatch) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700" title="Brand confermato">
+          <CheckCircle size={12} />
+          BRAND
+        </span>
+      );
+    }
+
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
+        <HelpCircle size={12} />
+        BRAND?
+        <button
+          onClick={(e) => { e.stopPropagation(); handleConfirmBrand(poi); }}
+          className="ml-1 p-0.5 hover:bg-green-200 rounded"
+          title="Conferma brand"
+        >
+          <Check size={12} className="text-green-600" />
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); handleRemoveBrand(poi); }}
+          className="p-0.5 hover:bg-red-200 rounded"
+          title="Rimuovi brand"
+        >
+          <X size={12} className="text-red-600" />
+        </button>
+      </span>
+    );
+  };
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
@@ -276,7 +441,7 @@ Rispondi in italiano in formato markdown.`;
           Analisi Contesto Quartiere
         </h1>
         <p className="text-gray-500 mt-2">
-          Esplora i dintorni, i POI e la vocazione commerciale del quartiere
+          Esplora i dintorni, i POI e la vocazione commerciale del quartiere con riconoscimento brand
         </p>
       </div>
 
@@ -323,6 +488,26 @@ Rispondi in italiano in formato markdown.`;
       {/* Results */}
       {pois.length > 0 && (
         <>
+          {/* Summary Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div className="bg-white rounded-lg p-4 border border-gray-200">
+              <p className="text-sm text-gray-500">Totale POI</p>
+              <p className="text-2xl font-bold text-gray-900">{pois.length}</p>
+            </div>
+            <div className="bg-white rounded-lg p-4 border border-green-200">
+              <p className="text-sm text-green-600">Brand Riconosciuti</p>
+              <p className="text-2xl font-bold text-green-700">{totalBrands}</p>
+            </div>
+            <div className="bg-white rounded-lg p-4 border border-blue-200">
+              <p className="text-sm text-blue-600">Attività Locali</p>
+              <p className="text-2xl font-bold text-blue-700">{totalLocals}</p>
+            </div>
+            <div className="bg-white rounded-lg p-4 border border-gray-200">
+              <p className="text-sm text-gray-500">Raggio</p>
+              <p className="text-2xl font-bold text-gray-900">{searchRadius}m</p>
+            </div>
+          </div>
+
           {/* Actions */}
           <div className="flex flex-wrap gap-3 mb-6">
             <Select
@@ -345,6 +530,13 @@ Rispondi in italiano in formato markdown.`;
               icon={<Download size={18} />}
             >
               Esporta CSV
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={handleClearLists}
+              icon={<Trash2 size={18} />}
+            >
+              Pulisci Liste
             </Button>
           </div>
 
@@ -383,21 +575,36 @@ Rispondi in italiano in formato markdown.`;
               <div className="space-y-2 max-h-[500px] overflow-y-auto">
                 {filteredPois.map((poi, index) => (
                   <div
-                    key={index}
-                    className="flex items-center gap-4 p-3 rounded-lg hover:bg-gray-50 border border-gray-100"
+                    key={poi.googlePlaceId || index}
+                    className={`flex items-center gap-4 p-3 rounded-lg hover:bg-gray-50 border ${
+                      poi.classification?.type === 'brand'
+                        ? 'border-green-200 bg-green-50/30'
+                        : 'border-gray-100'
+                    }`}
                   >
                     <div className="text-gray-400">
                       {getCategoryIcon(poi.category)}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-gray-900 truncate">{poi.name}</p>
-                      <p className="text-sm text-gray-500 truncate">{poi.address}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-gray-900 truncate">
+                          {poi.classification?.type === 'brand'
+                            ? poi.classification.brandDisplayName
+                            : poi.name}
+                        </p>
+                        {renderBrandIndicator(poi)}
+                      </div>
+                      <p className="text-sm text-gray-500 truncate">
+                        {poi.classification?.type === 'brand' && poi.classification.brandConfigSubCategory
+                          ? `${poi.classification.brandConfigSubCategory} • ${poi.address}`
+                          : poi.address}
+                      </p>
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-medium text-gray-900">{poi.distance}m</p>
                       {poi.rating && (
                         <p className="text-xs text-gray-500">
-                          ⭐ {poi.rating} ({poi.user_ratings_total})
+                          {poi.rating} ({poi.user_ratings_total})
                         </p>
                       )}
                     </div>
